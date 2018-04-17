@@ -12,6 +12,7 @@ LOCAL_MODULE:= atrace
 LOCAL_MODULE_TAGS:= optional
 
 LOCAL_SHARED_LIBRARIES := \
+    libbase \
     libbinder \
     libcutils \
     libutils \

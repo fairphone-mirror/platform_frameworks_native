@@ -26,10 +26,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/sendfile.h>
 #include <time.h>
 #include <unistd.h>
 #include <zlib.h>
+
+#include <android-base/file.h>
 
 #include <binder/IBinder.h>
 #include <binder/IServiceManager.h>
@@ -43,6 +44,7 @@
 #include <utils/Trace.h>
 
 using namespace android;
+using android::base::WriteFully;
 
 #define NELEM(x) ((int) (sizeof(x) / sizeof((x)[0])))
 
@@ -927,11 +929,16 @@ static void dumpTrace(int outFd)
         free(in);
         free(out);
     } else {
-        ssize_t sent = 0;
-        while ((sent = sendfile(outFd, traceFD, NULL, 64*1024*1024)) > 0);
-        if (sent == -1) {
-            fprintf(stderr, "error dumping trace: %s (%d)\n", strerror(errno),
-                    errno);
+        char buf[4096];
+        ssize_t rc;
+        while ((rc = TEMP_FAILURE_RETRY(read(traceFD, buf, sizeof(buf)))) > 0) {
+            if (!android::base::WriteFully(outFd, buf, rc)) {
+                fprintf(stderr, "error writing trace: %s\n", strerror(errno));
+                break;
+            }
+        }
+        if (rc == -1) {
+            fprintf(stderr, "error dumping trace: %s\n", strerror(errno));
         }
     }
 
