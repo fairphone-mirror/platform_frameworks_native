@@ -83,6 +83,14 @@ cc_defaults {
     include_dirs: ["bionic/libc/private"],
 }
 
+cc_library_static {
+    name: "libgles_workarounds",
+    defaults: ["gl_libs_defaults"],
+    srcs: [
+        "gles_workarounds.cpp"
+    ]
+}
+
 //##############################################################################
 // Build META EGL library
 //
@@ -103,6 +111,9 @@ cc_defaults {
         "libgraphicsenv",
         "libnativewindow",
         "libbacktrace",
+    ],
+    static_libs: [
+        "libgles_workarounds",
     ],
     target: {
         vendor: {
@@ -187,6 +198,9 @@ cc_defaults {
         },
     },
     shared_libs: ["libEGL"],
+    static_libs: [
+        "libgles_workarounds",
+    ],
 }
 
 //##############################################################################

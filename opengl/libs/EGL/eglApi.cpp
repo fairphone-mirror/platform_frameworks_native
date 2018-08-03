@@ -26,6 +26,8 @@
 #include "egl_tls.h"
 #include "egl_trace.h"
 
+#include "../gles_workarounds.h"
+
 using namespace android;
 
 namespace android {
@@ -278,7 +280,7 @@ const char* eglQueryString(EGLDisplay dpy, EGLint name) {
     clearError();
 
     egl_connection_t* const cnx = &gEGLImpl;
-    return cnx->platform.eglQueryString(dpy, name);
+    return FP2GLESWorkarounds::eglQueryString(name, cnx->platform.eglQueryString(dpy, name));
 }
 
 extern "C" EGLAPI const char* eglQueryStringImplementationANDROID(EGLDisplay dpy, EGLint name) {

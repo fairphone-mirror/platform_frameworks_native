@@ -1,5 +1,6 @@
 /*
  ** Copyright 2007, The Android Open Source Project
+ ** Copyright 2018-2020, Fairphone B.V.
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -27,6 +28,7 @@
 
 #include "../hooks.h"
 #include "../egl_impl.h"
+#include "../gles_workarounds.h"
 
 using namespace android;
 
@@ -352,5 +354,6 @@ const GLubyte * glGetString(GLenum name) {
         gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl;
         ret = _c->glGetString(name);
     }
-    return ret;
+
+    return FP2GLESWorkarounds::glGetString(name, ret);
 }

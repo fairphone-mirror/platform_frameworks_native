@@ -198,6 +198,15 @@ public:
     void onLooseCurrent();
     void onMakeCurrent(EGLSurface draw, EGLSurface read);
 
+    // Store GL error flag set by the framework.
+    // Used for working around driver issues.
+    // This uses int32_t instead of GLenum, so that we don't depend on
+    // GL headers here.
+    void setFrameworkGLError(int32_t error);
+    // As per specification of glGetError(), retrieving the error flag
+    // also resets it.
+    int32_t getResetFrameworkGLError();
+
     EGLDisplay dpy;
     EGLContext context;
     EGLConfig config;
@@ -207,6 +216,9 @@ public:
     int version;
     std::string gl_extensions;
     std::vector<std::string> tokenized_gl_extensions;
+
+private:
+    int32_t frameworkGLError;
 };
 
 // ----------------------------------------------------------------------------

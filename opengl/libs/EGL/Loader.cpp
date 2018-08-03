@@ -1,5 +1,6 @@
 /*
  ** Copyright 2007, The Android Open Source Project
+ ** Copyright 2018-2020, Fairphone B.V.
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -25,6 +26,7 @@
 #include <dlfcn.h>
 
 #include <android/dlext.h>
+#include <cutils/compiler.h>
 #include <cutils/properties.h>
 #include <log/log.h>
 #include <utils/Timers.h>
@@ -38,6 +40,7 @@
 #include "egl_trace.h"
 #include "egldefs.h"
 #include <EGL/eglext_angle.h>
+#include "gles_workarounds.h"
 
 namespace android {
 
@@ -721,6 +724,30 @@ Loader::driver_t* Loader::attempt_to_load_system_driver(egl_connection_t* cnx, c
     return hnd;
 }
 
+namespace
+{
+
+typedef EGLBoolean (*eglGetConfigAttrib_func_t)(
+    EGLDisplay display, EGLConfig config, EGLint attribute, EGLint * value);
+
+eglGetConfigAttrib_func_t eglGetConfigAttrib_func_ptr = nullptr;
+
+EGLBoolean eglGetConfigAttrib_wrapper(EGLDisplay display,
+    EGLConfig config,
+    EGLint attribute,
+    EGLint * value)
+{
+    if (CC_UNLIKELY(!eglGetConfigAttrib_func_ptr)) {
+        return EGL_FALSE;
+    }
+
+    const EGLBoolean result = eglGetConfigAttrib_func_ptr(display, config, attribute, value);
+
+    return FP2GLESWorkarounds::eglGetConfigAttrib(display, config, attribute, value, result);
+}
+
+}
+
 void Loader::initialize_api(void* dso, egl_connection_t* cnx, uint32_t mask) {
     if (mask & EGL) {
         getProcAddress = (getProcAddressType)dlsym(dso, "eglGetProcAddress");
@@ -734,6 +761,8 @@ void Loader::initialize_api(void* dso, egl_connection_t* cnx, uint32_t mask) {
         char const * const * api = egl_names;
         while (*api) {
             char const * name = *api;
+	    // wrap eglGetConfigAttrib(), see eglGetConfigAttrib_wrapper()
+            const bool loading_eglGetConfigAttrib = (strcmp(name, "eglGetConfigAttrib") == 0);
             __eglMustCastToProperFunctionPointerType f =
                 (__eglMustCastToProperFunctionPointerType)dlsym(dso, name);
             if (f == nullptr) {
@@ -742,6 +771,10 @@ void Loader::initialize_api(void* dso, egl_connection_t* cnx, uint32_t mask) {
                 if (f == nullptr) {
                     f = (__eglMustCastToProperFunctionPointerType)nullptr;
                 }
+            }
+	    if (f && loading_eglGetConfigAttrib) {
+                eglGetConfigAttrib_func_ptr = (eglGetConfigAttrib_func_t)f;
+                f = (__eglMustCastToProperFunctionPointerType)&eglGetConfigAttrib_wrapper;
             }
             *curr++ = f;
             api++;

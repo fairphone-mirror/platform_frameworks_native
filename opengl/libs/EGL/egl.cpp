@@ -110,6 +110,32 @@ egl_display_ptr validate_display_connection(EGLDisplay dpy,
 
 // ----------------------------------------------------------------------------
 
+void egl_set_framework_error_for_currrent_context(GLenum error) {
+    EGLContext context = egl_tls_t::getContext();
+    if (context == EGL_NO_CONTEXT)
+        return;
+
+    egl_context_t * const c = get_context(context);
+    if (c == NULL) // this should never happen, by construction
+        return;
+
+    c->setFrameworkGLError(error);
+}
+
+GLenum egl_get_reset_framework_error_for_current_context() {
+    EGLContext context = egl_tls_t::getContext();
+    if (context == EGL_NO_CONTEXT)
+        return 0;
+
+    egl_context_t * const c = get_context(context);
+    if (c == NULL) // this should never happen, by construction
+        return 0;
+
+    return c->getResetFrameworkGLError();
+}
+
+// ----------------------------------------------------------------------------
+
 const GLubyte * egl_get_string_for_current_context(GLenum name) {
     // NOTE: returning NULL here will fall-back to the default
     // implementation.

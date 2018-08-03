@@ -1,5 +1,6 @@
 /*
  ** Copyright 2007, The Android Open Source Project
+ ** Copyright 2018-2020, Fairphone B.V.
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -24,6 +25,7 @@
 
 #include "../hooks.h"
 #include "../egl_impl.h"
+#include "../gles_workarounds.h"
 
 using namespace android;
 
@@ -292,17 +294,41 @@ extern "C" {
  */
 
 extern "C" {
+    GLenum __glGetError();
     const GLubyte * __glGetString(GLenum name);
     const GLubyte * __glGetStringi(GLenum name, GLuint index);
     void __glGetBooleanv(GLenum pname, GLboolean * data);
     void __glGetFloatv(GLenum pname, GLfloat * data);
     void __glGetIntegerv(GLenum pname, GLint * data);
     void __glGetInteger64v(GLenum pname, GLint64 * data);
+    void __glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width,
+        GLsizei height, GLenum format, GLenum type, const void *pixels);
+    void __glTexImage3D(GLenum target, GLint level, GLint internalformat, GLsizei width,
+        GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type,
+        const void *pixels);
+    void __glTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset,
+        GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type,
+        const void *pixels);
+    void __glRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width,
+        GLsizei height);
+
+}
+
+GLenum glGetError() {
+    // As per specification of glGetError(), it resets the error flag when being
+    // called. So make sure to always fetch and reset both the framework and
+    // driver error flag.
+    const GLenum frameworkError =
+        egl_get_reset_framework_error_for_current_context();
+    const GLenum driverError = __glGetError();
+
+    // Framework-defined errors override driver errors.
+    return frameworkError != 0 ? frameworkError : driverError;
 }
 
 const GLubyte * glGetString(GLenum name) {
     egl_connection_t* const cnx = egl_get_connection();
-    return cnx->platform.glGetString(name);
+    return FP2GLESWorkarounds::glGetString(name, cnx->platform.glGetString(name));
 }
 
 const GLubyte * glGetStringi(GLenum name, GLuint index) {
@@ -311,21 +337,83 @@ const GLubyte * glGetStringi(GLenum name, GLuint index) {
 }
 
 void glGetBooleanv(GLenum pname, GLboolean * data) {
+    if (!FP2GLESWorkarounds::validateGlGetParameter(pname)) {
+        return;
+    }
+
     egl_connection_t* const cnx = egl_get_connection();
     return cnx->platform.glGetBooleanv(pname, data);
 }
 
 void glGetFloatv(GLenum pname, GLfloat * data) {
+    if (!FP2GLESWorkarounds::validateGlGetParameter(pname)) {
+        return;
+    }
+
     egl_connection_t* const cnx = egl_get_connection();
     return cnx->platform.glGetFloatv(pname, data);
 }
 
 void glGetIntegerv(GLenum pname, GLint * data) {
+    if (!FP2GLESWorkarounds::validateGlGetParameter(pname)) {
+        return;
+    }
+
     egl_connection_t* const cnx = egl_get_connection();
     return cnx->platform.glGetIntegerv(pname, data);
 }
 
 void glGetInteger64v(GLenum pname, GLint64 * data) {
+    if (!FP2GLESWorkarounds::validateGlGetParameter(pname)) {
+        return;
+    }
+
     egl_connection_t* const cnx = egl_get_connection();
     return cnx->platform.glGetInteger64v(pname, data);
+}
+
+void glTexImage2D(GLenum target, GLint level,GLint internalformat, GLsizei width, GLsizei height,
+    GLint border, GLenum format, GLenum type, const void *pixels) {
+    const bool isValidRequest = FP2GLESWorkarounds::checkValidGlTexImage2D(
+        target, level, internalformat, width, height, border, format, type, pixels);
+    if (isValidRequest) {
+        __glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
+    }
+}
+
+void glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width,
+    GLsizei height, GLenum format, GLenum type, const void *pixels) {
+    const bool isValidRequest = FP2GLESWorkarounds::checkValidGlTexSubImage2D(
+        target, level, xoffset, yoffset, width, height, format, type, pixels);
+    if (isValidRequest) {
+        __glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels);
+    }
+}
+
+void glTexImage3D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height,
+    GLsizei depth, GLint border, GLenum format, GLenum type, const void *pixels) {
+    const bool isValidRequest = FP2GLESWorkarounds::checkValidGlTexImage3D(
+        target, level, internalformat, width, height, depth, border, format, type, pixels);
+    if (isValidRequest) {
+        __glTexImage3D(target, level, internalformat, width, height, depth, border, format, type,
+            pixels);
+    }
+}
+
+void glTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset,
+    GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void *pixels) {
+    const bool isValidRequest = FP2GLESWorkarounds::checkValidGlTexSubImage3D(
+        target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels);
+    if (isValidRequest) {
+        __glTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format,
+            type, pixels);
+    }
+}
+
+void glRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width, GLsizei height) {
+    const bool isValidRequest = FP2GLESWorkarounds::checkValidGlRenderbufferStorage(
+        target, internalformat, width, height);
+    if (isValidRequest) {
+        __glRenderbufferStorage(target, internalformat, width, height);
+    }
 }

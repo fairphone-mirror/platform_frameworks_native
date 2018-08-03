@@ -28,6 +28,10 @@
 namespace android {
 // ----------------------------------------------------------------------------
 
+// Allow framework to set GL error state on unreliable driver implementations.
+EGLAPI void egl_set_framework_error_for_currrent_context(GLenum error);
+// Get and reset the current GL error flag defined by the framework.
+EGLAPI GLenum egl_get_reset_framework_error_for_current_context();
 
 EGLAPI const GLubyte * egl_get_string_for_current_context(GLenum name);
 EGLAPI const GLubyte * egl_get_string_for_current_context(GLenum name, GLuint index);
