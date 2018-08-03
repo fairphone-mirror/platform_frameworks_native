@@ -271,5 +271,30 @@ const GLubyte * glGetString(GLenum name) {
         gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl;
         ret = _c->glGetString(name);
     }
+
+    if (name == GL_VERSION) {
+        /*
+         * Replace version strings that indicate OpenGL ES 3.x support.
+         * The OpenGL ES 3.0 implementation of the driver causes various tests
+         * to fail on Android 7.
+         */
+        struct VersionStringReplacement {
+            const char * broken_version_prefix;
+            const size_t check_length;
+            const char * fake_version_string;
+        };
+        const VersionStringReplacement versionStringReplacements[] = {
+            { "OpenGL ES 3.", 12, "OpenGL ES 2.0" },
+            { "OpenGL ES-CM 3.", 15, "OpenGL ES-CM 2.0" },
+            { NULL, 0, NULL }
+        };
+        const VersionStringReplacement * r = versionStringReplacements;
+        for (; r->broken_version_prefix != NULL; ++r) {
+            if (strncmp((const char *)ret, r->broken_version_prefix, r->check_length) == 0) {
+                return (const GLubyte *)r->fake_version_string;
+            }
+        }
+    }
+
     return ret;
 }

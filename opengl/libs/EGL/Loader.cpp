@@ -33,6 +33,7 @@
 #include <utils/Trace.h>
 
 #include <EGL/egl.h>
+#include <EGL/eglext.h>
 
 #include "egldefs.h"
 #include "Loader.h"
@@ -508,6 +509,40 @@ static void* load_updated_driver(const char* kind, android_namespace_t* ns) {
     return nullptr;
 }
 
+namespace
+{
+
+typedef EGLBoolean (*eglGetConfigAttrib_func_t)(
+    EGLDisplay display, EGLConfig config, EGLint attribute, EGLint * value);
+
+eglGetConfigAttrib_func_t eglGetConfigAttrib_func_ptr = nullptr;
+
+/*
+ * Wrapper for eglGetConfigAttrib for masking attributes that indicate
+ * OpenGL ES 3.x support.
+ * The OpenGL ES 3.0 implementation of the driver causes various tests to fail
+ * on Android 7.
+ */
+EGLBoolean eglGetConfigAttrib_wrapper(EGLDisplay display,
+    EGLConfig config,
+    EGLint attribute,
+    EGLint * value)
+{
+    if (!eglGetConfigAttrib_func_ptr) {
+        return EGL_FALSE;
+    }
+
+    const EGLBoolean result = eglGetConfigAttrib_func_ptr(display, config, attribute, value);
+
+    if (attribute == EGL_RENDERABLE_TYPE) {
+        *value = *value & ~EGL_OPENGL_ES3_BIT_KHR;
+    }
+
+    return result;
+}
+
+}
+
 void *Loader::load_driver(const char* kind,
         egl_connection_t* cnx, uint32_t mask)
 {
@@ -538,6 +573,8 @@ void *Loader::load_driver(const char* kind,
         char const * const * api = egl_names;
         while (*api) {
             char const * name = *api;
+            // wrap eglGetConfigAttrib(), see eglGetConfigAttrib_wrapper()
+            const bool loading_eglGetConfigAttrib = (strcmp(name, "eglGetConfigAttrib") == 0);
             __eglMustCastToProperFunctionPointerType f =
                 (__eglMustCastToProperFunctionPointerType)dlsym(dso, name);
             if (f == NULL) {
@@ -546,6 +583,10 @@ void *Loader::load_driver(const char* kind,
                 if (f == NULL) {
                     f = (__eglMustCastToProperFunctionPointerType)0;
                 }
+            }
+            if (f && loading_eglGetConfigAttrib) {
+                eglGetConfigAttrib_func_ptr = (eglGetConfigAttrib_func_t)f;
+                f = (__eglMustCastToProperFunctionPointerType)&eglGetConfigAttrib_wrapper;
             }
             *curr++ = f;
             api++;
