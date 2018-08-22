@@ -91,17 +91,7 @@ public:
         OP_USE_SIP = 53,
         OP_PROCESS_OUTGOING_CALLS = 54,
         OP_USE_FINGERPRINT = 55,
-        OP_BODY_SENSORS = 56,
-        OP_READ_CELL_BROADCASTS = 57,
-        OP_MOCK_LOCATION = 58,
-        OP_READ_EXTERNAL_STORAGE = 59,
-        OP_WRITE_EXTERNAL_STORAGE = 60,
-        OP_TURN_SCREEN_ON = 61,
-        OP_GET_ACCOUNTS = 62,
-        OP_RUN_IN_BACKGROUND = 63,
-        OP_CHANGE_WIFI_STATE = 64,
-        OP_BLUETOOTH_ADMIN = 65,
-        OP_SU = 66
+        OP_BODY_SENSORS = 56
     };
 
     AppOpsManager();
