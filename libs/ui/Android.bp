@@ -24,6 +24,7 @@ cc_library_shared {
     cflags: [
         "-Wall",
         "-Werror",
+        "-DADDNL_GRALLOC_10_USAGE_BITS=0x02000000U",
     ],
     cppflags: [
         "-Weverything",
