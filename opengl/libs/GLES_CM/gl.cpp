@@ -1,5 +1,6 @@
 /* 
  ** Copyright 2007, The Android Open Source Project
+ ** Copyright 2018-2019, Fairphone B.V.
  **
  ** Licensed under the Apache License, Version 2.0 (the "License"); 
  ** you may not use this file except in compliance with the License. 
@@ -14,6 +15,7 @@
  ** limitations under the License.
  */
 
+#include <cstdlib>
 #include <ctype.h>
 #include <string.h>
 #include <errno.h>
@@ -23,6 +25,7 @@
 #include <GLES/gl.h>
 #include <GLES/glext.h>
 
+#include <cutils/compiler.h>
 #include <cutils/log.h>
 #include <cutils/properties.h>
 
@@ -265,6 +268,18 @@ extern "C" {
 
 extern "C" const GLubyte * __glGetString(GLenum name);
 
+namespace
+{
+
+bool check_fp2_experimental_gles3() {
+    static const char s_OpenGLESv30[] = "196608";
+    char prop[PROPERTY_VALUE_MAX];
+    property_get("ro.opengles.version", prop, "");
+    return strncmp(prop, s_OpenGLESv30, PROPERTY_VALUE_MAX) == 0;
+}
+
+}
+
 const GLubyte * glGetString(GLenum name) {
     const GLubyte * ret = egl_get_string_for_current_context(name);
     if (ret == NULL) {
@@ -272,7 +287,8 @@ const GLubyte * glGetString(GLenum name) {
         ret = _c->glGetString(name);
     }
 
-    if (name == GL_VERSION) {
+    static const bool fp2_experimental_gles3 = check_fp2_experimental_gles3();
+    if (CC_UNLIKELY((name == GL_VERSION) && !fp2_experimental_gles3)) {
         /*
          * Replace version strings that indicate OpenGL ES 3.x support.
          * The OpenGL ES 3.0 implementation of the driver causes various tests
