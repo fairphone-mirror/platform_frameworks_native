@@ -16,6 +16,9 @@
 
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include <KHR/khrplatform.h>
 
 // Do not include the version-specific GL headers here. Instead, forward-declare
@@ -70,4 +73,18 @@ public:
      *  - Adjust version strings to report OpenGL ES 2.0 only.
      */
     static const GLubyte * glGetString(GLenum name, const GLubyte * driverString);
+
+    /** Filter extension list in internal EGL data structures.
+     *
+     * OpenGL (ES) extensions need to be handled by thread and context. Use
+     * EGL's existing logic for that and filter their internal data structures
+     * directly.
+     *
+     * Note: Add a call to this function in egl_object.cpp directly, so that the
+     * extensions are filtered direct where EGL's internal data structures are
+     * initialized.
+     */
+    static void filterEGLContextExtensions(
+        std::string * gl_extensions,
+        std::vector<std::string> * tokenized_gl_extensions);
 };

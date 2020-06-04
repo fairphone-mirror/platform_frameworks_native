@@ -18,6 +18,8 @@
 
 #include <sstream>
 
+#include "../gles_workarounds.h"
+
 
 // ----------------------------------------------------------------------------
 namespace android {
@@ -318,6 +320,11 @@ void egl_context_t::onMakeCurrent(EGLSurface draw, EGLSurface read) {
             while (ss >> str) {
                 tokenized_gl_extensions.push_back(str);
             }
+
+            FP2GLESWorkarounds::filterEGLContextExtensions(
+                &gl_extensions,
+                &tokenized_gl_extensions
+            );
         }
     }
 }
