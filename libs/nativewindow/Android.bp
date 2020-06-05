@@ -68,6 +68,10 @@ cc_library {
         "libgrallocusage",
     ],
 
+    whole_static_libs: [
+        "libgles_workarounds",
+    ],
+
     header_libs: [
         "libnativebase_headers",
     ],
