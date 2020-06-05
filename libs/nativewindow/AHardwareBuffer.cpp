@@ -23,6 +23,7 @@
 #include <memory>
 
 #include <cutils/native_handle.h>
+#include <cutils/properties.h>
 #include <log/log.h>
 #include <utils/StrongPointer.h>
 #include <ui/GraphicBuffer.h>
@@ -30,6 +31,8 @@
 
 #include <private/android/AHardwareBufferHelpers.h>
 #include <android/hardware/graphics/common/1.1/types.h>
+
+#include "../../opengl/libs/gles_workarounds.h"
 
 
 static constexpr int kFdBufferSize = 128 * sizeof(int);  // 128 ints
@@ -43,6 +46,17 @@ using namespace android;
 int AHardwareBuffer_allocate(const AHardwareBuffer_Desc* desc, AHardwareBuffer** outBuffer) {
     if (!outBuffer || !desc) return BAD_VALUE;
     if (!AHardwareBuffer_isValidDescription(desc, /*log=*/true)) return BAD_VALUE;
+
+    // Refuse creating buffers that are proven to be unreliable (by CTS), unless
+    // the user opts in for experimental features.
+    if (!FP2GLESWorkarounds::isExperimentalGLES3Enabled()) {
+        // SingleLayer_ColorTest_GpuColorOutputCpuRead_R8G8B8_UNORM
+        if (desc->layers == 1 && desc->format == AHARDWAREBUFFER_FORMAT_R8G8B8_UNORM) {
+            ALOGW("Refusing to create buffer with unreliable configuration (R8G8B8_UNORM) while "
+                "experimental GLES3 support is disabled.");
+            return BAD_VALUE;
+        }
+    }
 
     int format = AHardwareBuffer_convertToPixelFormat(desc->format);
     uint64_t usage = AHardwareBuffer_convertToGrallocUsageBits(desc->usage);
