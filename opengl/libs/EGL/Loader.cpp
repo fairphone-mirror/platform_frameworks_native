@@ -1,5 +1,6 @@
 /*
  ** Copyright 2007, The Android Open Source Project
+ ** Copyright 2018-2020, Fairphone B.V.
  **
  ** Licensed under the Apache License, Version 2.0 (the "License");
  ** you may not use this file except in compliance with the License.
@@ -25,6 +26,7 @@
 #include <dlfcn.h>
 
 #include <android/dlext.h>
+#include <cutils/compiler.h>
 #include <cutils/properties.h>
 #include <log/log.h>
 
@@ -485,6 +487,8 @@ static void* load_updated_driver(const char* kind, android_namespace_t* ns) {
 namespace
 {
 
+bool fp2_experimental_gles3 = false;
+
 typedef EGLBoolean (*eglGetConfigAttrib_func_t)(
     EGLDisplay display, EGLConfig config, EGLint attribute, EGLint * value);
 
@@ -501,17 +505,25 @@ EGLBoolean eglGetConfigAttrib_wrapper(EGLDisplay display,
     EGLint attribute,
     EGLint * value)
 {
-    if (!eglGetConfigAttrib_func_ptr) {
+    if (CC_UNLIKELY(!eglGetConfigAttrib_func_ptr)) {
         return EGL_FALSE;
     }
 
     const EGLBoolean result = eglGetConfigAttrib_func_ptr(display, config, attribute, value);
 
-    if (attribute == EGL_RENDERABLE_TYPE) {
+    if ((attribute == EGL_RENDERABLE_TYPE) && !fp2_experimental_gles3) {
         *value = *value & ~EGL_OPENGL_ES3_BIT_KHR;
     }
 
     return result;
+}
+
+bool check_fp2_experimental_gles3()
+{
+    static const char s_OpenGLESv30[] = "196608";
+    char prop[PROPERTY_VALUE_MAX];
+    property_get("ro.opengles.version", prop, "");
+    return strncmp(prop, s_OpenGLESv30, PROPERTY_VALUE_MAX) == 0;
 }
 
 }
@@ -520,6 +532,8 @@ void *Loader::load_driver(const char* kind,
         egl_connection_t* cnx, uint32_t mask)
 {
     ATRACE_CALL();
+
+    fp2_experimental_gles3 = check_fp2_experimental_gles3();
 
     void* dso = nullptr;
 #ifndef __ANDROID_VNDK__
