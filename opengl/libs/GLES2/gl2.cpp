@@ -302,6 +302,17 @@ extern "C" {
     void __glGetInteger64v(GLenum pname, GLint64 * data);
 }
 
+namespace
+{
+
+template<typename T>
+void getAliasedPointSizeRange(T * data) {
+    data[0] = static_cast<T>(FP2GLESWorkarounds::GL_ALIASED_POINT_SIZE_MIN);
+    data[1] = static_cast<T>(FP2GLESWorkarounds::GL_ALIASED_POINT_SIZE_MAX);
+}
+
+}
+
 const GLubyte * glGetString(GLenum name) {
     const GLubyte * ret = egl_get_string_for_current_context(name);
     if (ret == NULL) {
@@ -343,6 +354,11 @@ void glGetFloatv(GLenum pname, GLfloat * data) {
         }
     }
 
+    if (pname == GL_ALIASED_POINT_SIZE_RANGE) {
+        getAliasedPointSizeRange(data);
+        return;
+    }
+
     gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl;
     if (_c) _c->glGetFloatv(pname, data);
 }
@@ -356,6 +372,11 @@ void glGetIntegerv(GLenum pname, GLint * data) {
         }
     }
 
+    if (pname == GL_ALIASED_POINT_SIZE_RANGE) {
+        getAliasedPointSizeRange(data);
+        return;
+    }
+
     gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl;
     if (_c) _c->glGetIntegerv(pname, data);
 }
@@ -367,6 +388,11 @@ void glGetInteger64v(GLenum pname, GLint64 * data) {
             *data = (GLint64)num_exts;
             return;
         }
+    }
+
+    if (pname == GL_ALIASED_POINT_SIZE_RANGE) {
+        getAliasedPointSizeRange(data);
+        return;
     }
 
     gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl;

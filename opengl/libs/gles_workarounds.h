@@ -28,6 +28,7 @@ typedef void           *EGLConfig;
 typedef void           *EGLDisplay;
 typedef khronos_int32_t EGLint;
 typedef unsigned int    GLenum;
+typedef khronos_float_t GLfloat;
 typedef khronos_uint8_t GLubyte;
 
 
@@ -54,6 +55,19 @@ public:
     static void initialize();
     /** Check whether experimental OpenGL ES 3.0 support is enabled in the system.*/
     static bool isExperimentalGLES3Enabled();
+
+    // Global GL constants
+
+    /** Actual values for GL_ALIASED_POINT_SIZE_RANGE
+     *
+     * The driver reports range (1.0, 1023.0), but it actually renders points up
+     * to size 4092. This causes conformance tests to fail, because the driver
+     * is supposed to clamp requested point sizes to the range it reports. Fix
+     * this by reporting values that match the actual behavior of the driver.
+     * Test: dEQP-GLES2.functional.rasterization.limits#points
+     */
+    static constexpr GLfloat GL_ALIASED_POINT_SIZE_MIN = 1.f;
+    static constexpr GLfloat GL_ALIASED_POINT_SIZE_MAX = 4092.f;
 
     /** Hide GLES3 support from context attributes if needed.
      *
