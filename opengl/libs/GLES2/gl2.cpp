@@ -326,6 +326,17 @@ GLenum glGetError() {
     return frameworkError != 0 ? frameworkError : driverError;
 }
 
+namespace
+{
+
+template<typename T>
+void getAliasedPointSizeRange(T * data) {
+    data[0] = static_cast<T>(FP2GLESWorkarounds::GL_ALIASED_POINT_SIZE_MIN);
+    data[1] = static_cast<T>(FP2GLESWorkarounds::GL_ALIASED_POINT_SIZE_MAX);
+}
+
+}
+
 const GLubyte * glGetString(GLenum name) {
     egl_connection_t* const cnx = egl_get_connection();
     return FP2GLESWorkarounds::glGetString(name, cnx->platform.glGetString(name));
@@ -350,6 +361,11 @@ void glGetFloatv(GLenum pname, GLfloat * data) {
         return;
     }
 
+    if (pname == GL_ALIASED_POINT_SIZE_RANGE) {
+        getAliasedPointSizeRange(data);
+        return;
+    }
+
     egl_connection_t* const cnx = egl_get_connection();
     return cnx->platform.glGetFloatv(pname, data);
 }
@@ -359,12 +375,22 @@ void glGetIntegerv(GLenum pname, GLint * data) {
         return;
     }
 
+    if (pname == GL_ALIASED_POINT_SIZE_RANGE) {
+        getAliasedPointSizeRange(data);
+        return;
+    }
+
     egl_connection_t* const cnx = egl_get_connection();
     return cnx->platform.glGetIntegerv(pname, data);
 }
 
 void glGetInteger64v(GLenum pname, GLint64 * data) {
     if (!FP2GLESWorkarounds::validateGlGetParameter(pname)) {
+        return;
+    }
+
+    if (pname == GL_ALIASED_POINT_SIZE_RANGE) {
+        getAliasedPointSizeRange(data);
         return;
     }
 
