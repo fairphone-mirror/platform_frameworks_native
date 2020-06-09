@@ -1,0 +1,73 @@
+/*
+ * Copyright (C) 2020, Fairphone B.V.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#pragma once
+
+#include <KHR/khrplatform.h>
+
+// Do not include the version-specific GL headers here. Instead, forward-declare
+// the required type declarations:
+typedef unsigned int    EGLBoolean;
+typedef void           *EGLConfig;
+typedef void           *EGLDisplay;
+typedef khronos_int32_t EGLint;
+typedef unsigned int    GLenum;
+typedef khronos_uint8_t GLubyte;
+
+
+/** Workaround broken and incomplete graphics driver behavior on the FP2.
+ *
+ * The OpenGL ES implementation of the driver for the Fairphone FP2 is
+ * incomplete, unstable, and causes various tests to fail on Android 7 and 9.
+ * Falling back to OpenGL ES 2.0 instead of 3.0 is more stable in many
+ * situations. Therefore, OpenGL ES 3.0 is treated as experimental feature from
+ * Android 7 onwards.
+ *
+ * This class gathers fixes and workarounds for bugs and incomplete
+ * implementations in the outdated graphics driver. Based on the
+ * ro.opengles.version system property, it operates in two modes:
+ *
+ * - OpenGL ES 2.0: Hide meta data that hints to OpenGL ES 3.0 support in
+ *   strings and feature flags.
+ * - Experimental OpenGL ES 3.0: Keep exposing GLES support as reported by the
+ *   driver and only try applying fixes where possible.
+ */
+class FP2GLESWorkarounds {
+public:
+    /** Call this once before using any other functions of this class. */
+    static void initialize();
+    /** Check whether experimental OpenGL ES 3.0 support is enabled in the system.*/
+    static bool isExperimentalGLES3Enabled();
+
+    /** Hide GLES3 support from context attributes if needed.
+     *
+     * Remove EGL_OPENGL_ES3_BIT_KHR from EGL_RENDERABLE_TYPE unless
+     * experimental GLES3 support is enabled.
+     */
+    static EGLBoolean eglGetConfigAttrib(
+        EGLDisplay display,
+        EGLConfig config,
+        EGLint attribute,
+        EGLint * value,
+        EGLBoolean driverResult);
+
+    /** Adjust driver-reported strings if needed.
+     *
+     * Following changes are made, unless experimental GLES3 support is enabled:
+     *  - Adjust version strings to report OpenGL ES 2.0 only.
+     */
+    static const GLubyte * glGetString(GLenum name, const GLubyte * driverString);
+};

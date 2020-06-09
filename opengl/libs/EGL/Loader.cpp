@@ -35,10 +35,9 @@
 #endif
 #include <vndksupport/linker.h>
 
-#include <EGL/eglext.h>
-
 #include "egl_trace.h"
 #include "egldefs.h"
+#include "gles_workarounds.h"
 
 extern "C" {
   android_namespace_t* android_get_exported_namespace(const char*);
@@ -487,19 +486,11 @@ static void* load_updated_driver(const char* kind, android_namespace_t* ns) {
 namespace
 {
 
-bool fp2_experimental_gles3 = false;
-
 typedef EGLBoolean (*eglGetConfigAttrib_func_t)(
     EGLDisplay display, EGLConfig config, EGLint attribute, EGLint * value);
 
 eglGetConfigAttrib_func_t eglGetConfigAttrib_func_ptr = nullptr;
 
-/*
- * Wrapper for eglGetConfigAttrib for masking attributes that indicate
- * OpenGL ES 3.x support.
- * The OpenGL ES 3.0 implementation of the driver causes various tests to fail
- * on Android 7.
- */
 EGLBoolean eglGetConfigAttrib_wrapper(EGLDisplay display,
     EGLConfig config,
     EGLint attribute,
@@ -511,19 +502,7 @@ EGLBoolean eglGetConfigAttrib_wrapper(EGLDisplay display,
 
     const EGLBoolean result = eglGetConfigAttrib_func_ptr(display, config, attribute, value);
 
-    if ((attribute == EGL_RENDERABLE_TYPE) && !fp2_experimental_gles3) {
-        *value = *value & ~EGL_OPENGL_ES3_BIT_KHR;
-    }
-
-    return result;
-}
-
-bool check_fp2_experimental_gles3()
-{
-    static const char s_OpenGLESv30[] = "196608";
-    char prop[PROPERTY_VALUE_MAX];
-    property_get("ro.opengles.version", prop, "");
-    return strncmp(prop, s_OpenGLESv30, PROPERTY_VALUE_MAX) == 0;
+    return FP2GLESWorkarounds::eglGetConfigAttrib(display, config, attribute, value, result);
 }
 
 }
@@ -533,7 +512,7 @@ void *Loader::load_driver(const char* kind,
 {
     ATRACE_CALL();
 
-    fp2_experimental_gles3 = check_fp2_experimental_gles3();
+    FP2GLESWorkarounds::initialize();
 
     void* dso = nullptr;
 #ifndef __ANDROID_VNDK__

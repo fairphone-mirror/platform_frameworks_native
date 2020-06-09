@@ -15,18 +15,17 @@
  ** limitations under the License.
  */
 
-#include <cstdlib>
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
 #include <sys/ioctl.h>
 
 #include <log/log.h>
-#include <cutils/compiler.h>
 #include <cutils/properties.h>
 
 #include "../hooks.h"
 #include "../egl_impl.h"
+#include "../gles_workarounds.h"
 
 using namespace android;
 
@@ -303,18 +302,6 @@ extern "C" {
     void __glGetInteger64v(GLenum pname, GLint64 * data);
 }
 
-namespace
-{
-
-bool check_fp2_experimental_gles3() {
-    static const char s_OpenGLESv30[] = "196608";
-    char prop[PROPERTY_VALUE_MAX];
-    property_get("ro.opengles.version", prop, "");
-    return strncmp(prop, s_OpenGLESv30, PROPERTY_VALUE_MAX) == 0;
-}
-
-}
-
 const GLubyte * glGetString(GLenum name) {
     const GLubyte * ret = egl_get_string_for_current_context(name);
     if (ret == NULL) {
@@ -322,32 +309,7 @@ const GLubyte * glGetString(GLenum name) {
         if(_c) ret = _c->glGetString(name);
     }
 
-    static const bool fp2_experimental_gles3 = check_fp2_experimental_gles3();
-    if (CC_UNLIKELY((name == GL_VERSION) && !fp2_experimental_gles3)) {
-        /*
-         * Replace version strings that indicate OpenGL ES 3.x support.
-         * The OpenGL ES 3.0 implementation of the driver causes various tests
-         * to fail on Android 7.
-         */
-        struct VersionStringReplacement {
-            const char * broken_version_prefix;
-            const size_t check_length;
-            const char * fake_version_string;
-        };
-        const VersionStringReplacement versionStringReplacements[] = {
-            { "OpenGL ES 3.", 12, "OpenGL ES 2.0" },
-            { "OpenGL ES-CM 3.", 15, "OpenGL ES-CM 2.0" },
-            { NULL, 0, NULL }
-        };
-        const VersionStringReplacement * r = versionStringReplacements;
-        for (; r->broken_version_prefix != NULL; ++r) {
-            if (strncmp((const char *)ret, r->broken_version_prefix, r->check_length) == 0) {
-                return (const GLubyte *)r->fake_version_string;
-            }
-        }
-    }
-
-    return ret;
+    return FP2GLESWorkarounds::glGetString(name, ret);
 }
 
 const GLubyte * glGetStringi(GLenum name, GLuint index) {
