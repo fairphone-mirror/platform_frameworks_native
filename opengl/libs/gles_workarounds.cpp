@@ -25,6 +25,15 @@ bool check_fp2_experimental_gles3()
     return strncmp(prop, s_OpenGLESv30, PROPERTY_VALUE_MAX) == 0;
 }
 
+void early_gles_workarounds_init()
+{
+    fp2_experimental_gles3 = check_fp2_experimental_gles3();
+}
+
+pthread_once_t once_control = PTHREAD_ONCE_INIT;
+const int sEarlyInitState = pthread_once(&once_control, &early_gles_workarounds_init);
+
+
 const std::vector<std::string> & unstableGLExtension()
 {
     static const std::vector<std::string> exts = {
@@ -61,11 +70,6 @@ std::string filterStableExtensions(const std::string & extensions)
 
 }
 
-
-void FP2GLESWorkarounds::initialize()
-{
-    fp2_experimental_gles3 = check_fp2_experimental_gles3();
-}
 
 bool FP2GLESWorkarounds::isExperimentalGLES3Enabled()
 {

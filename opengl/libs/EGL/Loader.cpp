@@ -512,8 +512,6 @@ void *Loader::load_driver(const char* kind,
 {
     ATRACE_CALL();
 
-    FP2GLESWorkarounds::initialize();
-
     void* dso = nullptr;
 #ifndef __ANDROID_VNDK__
     android_namespace_t* ns = android_getDriverNamespace();

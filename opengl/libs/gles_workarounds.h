@@ -51,8 +51,6 @@ typedef khronos_uint8_t GLubyte;
  */
 class FP2GLESWorkarounds {
 public:
-    /** Call this once before using any other functions of this class. */
-    static void initialize();
     /** Check whether experimental OpenGL ES 3.0 support is enabled in the system.*/
     static bool isExperimentalGLES3Enabled();
 
