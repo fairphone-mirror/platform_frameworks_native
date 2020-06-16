@@ -79,6 +79,10 @@ EGLBoolean FP2GLESWorkarounds::eglGetConfigAttrib(
     EGLint * value,
     const EGLBoolean driverResult)
 {
+    if (!value) {
+        return driverResult;
+    }
+
     if ((attribute == EGL_RENDERABLE_TYPE) && !fp2_experimental_gles3) {
         *value = *value & ~EGL_OPENGL_ES3_BIT_KHR;
     }
