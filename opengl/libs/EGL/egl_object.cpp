@@ -283,7 +283,8 @@ void egl_surface_t::terminate() {
 egl_context_t::egl_context_t(EGLDisplay dpy, EGLContext context, EGLConfig config,
         egl_connection_t const* cnx, int version) :
     egl_object_t(get_display_nowake(dpy)), dpy(dpy), context(context),
-            config(config), read(0), draw(0), cnx(cnx), version(version) {
+            config(config), read(0), draw(0), cnx(cnx), version(version),
+            frameworkGLError(0) {
 }
 
 void egl_context_t::onLooseCurrent() {
@@ -328,6 +329,18 @@ void egl_context_t::onMakeCurrent(EGLSurface draw, EGLSurface read) {
         }
     }
 }
+
+
+void egl_context_t::setFrameworkGLError(int32_t error) {
+    frameworkGLError = error;
+}
+
+int32_t egl_context_t::getResetFrameworkGLError() {
+    const int32_t currentError = frameworkGLError;
+    frameworkGLError = 0;
+    return currentError;
+}
+
 
 // ----------------------------------------------------------------------------
 }; // namespace android

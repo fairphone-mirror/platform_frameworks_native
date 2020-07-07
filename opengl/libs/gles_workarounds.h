@@ -27,7 +27,9 @@ using EGLConfig     = void*;
 using EGLDisplay    = void*;
 using EGLint        = int32_t;
 using GLenum        = unsigned int;
+using GLint         = int32_t;
 using GLfloat       = float;
+using GLsizei       = int32_t;
 using GLubyte       = uint8_t;
 
 
@@ -84,6 +86,27 @@ public:
      *  - Adjust version strings to report OpenGL ES 2.0 only.
      */
     static const GLubyte * glGetString(GLenum name, const GLubyte * driverString);
+
+
+    /** Check for valid texture parameters and set GL error flag if needed.
+     *
+     * This checks if the requested texture is valid according to the current
+     * set of exposed driver features. If it is not valid, this will set the
+     * value returned by the next call to glGetError() at framework level
+     * accordingly.
+     */
+    static bool checkValidGlTexImage2D(GLenum target, GLint level, GLint internalformat,
+        GLsizei width, GLsizei height, GLint border, GLenum format, GLenum type, const void * data);
+    static bool checkValidGlTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset,
+        GLsizei width, GLsizei height, GLenum format, GLenum type, const void * data);
+    static bool checkValidGlTexImage3D(GLenum target, GLint level, GLint internalformat,
+        GLsizei width, GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type,
+        const void *pixels);
+    static bool checkValidGlTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset,
+        GLint zoffset, GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type,
+        const void *pixels);
+    static bool checkValidGlRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width,
+        GLsizei height);
 
     /** Filter extension list in internal EGL data structures.
      *

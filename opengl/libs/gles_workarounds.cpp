@@ -11,6 +11,9 @@
 #include <EGL/eglext.h>
 #include <GLES/gl.h>
 #include <GLES/glext.h>
+#include <GLES3/gl3.h>
+
+#include "egl_impl.h"
 
 namespace
 {
@@ -68,6 +71,25 @@ std::string filterStableExtensions(const std::string & extensions)
         "");
 }
 
+// Common function to check for incompletely supported SRGB formats for
+// textures and renderbuffers.
+bool isValidTextureFormat(GLenum format, GLenum internalformat) {
+    if (fp2_experimental_gles3) {
+        // Experimental mode: Expose everything the driver implements.
+        return true;
+    }
+
+    if (format == GL_SRGB_EXT || format == GL_SRGB_ALPHA_EXT)
+        return false;
+
+    if (internalformat == GL_SRGB8 || internalformat == GL_SRGB8_ALPHA8
+        || internalformat == GL_SRGB8_ALPHA8_EXT || internalformat == GL_SRGB_EXT
+        || internalformat == GL_SRGB_ALPHA_EXT)
+        return false;
+
+    return true;
+}
+
 }
 
 
@@ -122,6 +144,77 @@ const GLubyte * FP2GLESWorkarounds::glGetString(const GLenum name, const GLubyte
     }
 
     return driverString;
+}
+
+
+bool FP2GLESWorkarounds::checkValidGlTexImage2D(GLenum /*target*/,
+    GLint /*level*/,
+    GLint internalformat,
+    GLsizei /*width*/,
+    GLsizei /*height*/,
+    GLint /*border*/,
+    GLenum format,
+    GLenum /*type*/,
+    const void * /*data*/)
+{
+    if (!isValidTextureFormat(format, internalformat)) {
+        android::egl_set_framework_error_for_currrent_context(GL_INVALID_OPERATION);
+        return false;
+    }
+
+    return true;
+}
+
+bool FP2GLESWorkarounds::checkValidGlTexSubImage2D(GLenum /*target*/,
+    GLint /*level*/,
+    GLint /*xoffset*/,
+    GLint /*yoffset*/,
+    GLsizei /*width*/,
+    GLsizei /*height*/,
+    GLenum format,
+    GLenum /*type*/,
+    const void * /*data*/)
+{
+    if (!isValidTextureFormat(format, 0)) {
+        android::egl_set_framework_error_for_currrent_context(GL_INVALID_OPERATION);
+        return false;
+    }
+
+    return true;
+}
+
+bool FP2GLESWorkarounds::checkValidGlTexImage3D(GLenum /*target*/, GLint /*level*/,
+    GLint internalformat, GLsizei /*width*/, GLsizei /*height*/, GLsizei /*depth*/,
+    GLint /*border*/, GLenum format, GLenum /*type*/, const void */*pixels*/) {
+    if (!isValidTextureFormat(format, internalformat)) {
+        android::egl_set_framework_error_for_currrent_context(GL_INVALID_OPERATION);
+        return false;
+    }
+    return true;
+}
+
+bool FP2GLESWorkarounds::checkValidGlTexSubImage3D(GLenum /*target*/, GLint /*level*/,
+    GLint /*xoffset*/, GLint /*yoffset*/, GLint /*zoffset*/, GLsizei /*width*/, GLsizei /*height*/,
+    GLsizei /*depth*/, GLenum format, GLenum /*type*/,
+    const void */*pixels*/) {
+    if (!isValidTextureFormat(format, 0)) {
+        android::egl_set_framework_error_for_currrent_context(GL_INVALID_OPERATION);
+        return false;
+    }
+    return true;
+}
+
+bool FP2GLESWorkarounds::checkValidGlRenderbufferStorage(GLenum /*target*/,
+    GLenum internalformat,
+    GLsizei /*width*/,
+    GLsizei /*height*/)
+{
+    if (!isValidTextureFormat(0, internalformat)) {
+        android::egl_set_framework_error_for_currrent_context(GL_INVALID_OPERATION);
+        return false;
+    }
+
+    return true;
 }
 
 void FP2GLESWorkarounds::filterEGLContextExtensions(

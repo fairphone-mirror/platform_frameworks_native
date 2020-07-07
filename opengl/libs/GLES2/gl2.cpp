@@ -294,12 +294,24 @@ extern "C" {
  */
 
 extern "C" {
+    GLenum __glGetError();
     const GLubyte * __glGetString(GLenum name);
     const GLubyte * __glGetStringi(GLenum name, GLuint index);
     void __glGetBooleanv(GLenum pname, GLboolean * data);
     void __glGetFloatv(GLenum pname, GLfloat * data);
     void __glGetIntegerv(GLenum pname, GLint * data);
     void __glGetInteger64v(GLenum pname, GLint64 * data);
+    void __glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width,
+        GLsizei height, GLenum format, GLenum type, const void *pixels);
+    void __glTexImage3D(GLenum target, GLint level, GLint internalformat, GLsizei width,
+        GLsizei height, GLsizei depth, GLint border, GLenum format, GLenum type,
+        const void *pixels);
+    void __glTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset,
+        GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type,
+        const void *pixels);
+    void __glRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width,
+        GLsizei height);
+
 }
 
 namespace
@@ -311,6 +323,18 @@ void getAliasedPointSizeRange(T * data) {
     data[1] = static_cast<T>(FP2GLESWorkarounds::GL_ALIASED_POINT_SIZE_MAX);
 }
 
+}
+
+GLenum glGetError() {
+    // As per specification of glGetError(), it resets the error flag when being
+    // called. So make sure to always fetch and reset both the framework and
+    // driver error flag.
+    const GLenum frameworkError =
+        egl_get_reset_framework_error_for_current_context();
+    const GLenum driverError = __glGetError();
+
+    // Framework-defined errors override driver errors.
+    return frameworkError != 0 ? frameworkError : driverError;
 }
 
 const GLubyte * glGetString(GLenum name) {
@@ -397,4 +421,50 @@ void glGetInteger64v(GLenum pname, GLint64 * data) {
 
     gl_hooks_t::gl_t const * const _c = &getGlThreadSpecific()->gl;
     if (_c) _c->glGetInteger64v(pname, data);
+}
+
+void glTexImage2D(GLenum target, GLint level,GLint internalformat, GLsizei width, GLsizei height,
+    GLint border, GLenum format, GLenum type, const void *pixels) {
+    const bool isValidRequest = FP2GLESWorkarounds::checkValidGlTexImage2D(
+        target, level, internalformat, width, height, border, format, type, pixels);
+    if (isValidRequest) {
+        __glTexImage2D(target, level, internalformat, width, height, border, format, type, pixels);
+    }
+}
+
+void glTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLsizei width,
+    GLsizei height, GLenum format, GLenum type, const void *pixels) {
+    const bool isValidRequest = FP2GLESWorkarounds::checkValidGlTexSubImage2D(
+        target, level, xoffset, yoffset, width, height, format, type, pixels);
+    if (isValidRequest) {
+        __glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type, pixels);
+    }
+}
+
+void glTexImage3D(GLenum target, GLint level, GLint internalformat, GLsizei width, GLsizei height,
+    GLsizei depth, GLint border, GLenum format, GLenum type, const void *pixels) {
+    const bool isValidRequest = FP2GLESWorkarounds::checkValidGlTexImage3D(
+        target, level, internalformat, width, height, depth, border, format, type, pixels);
+    if (isValidRequest) {
+        __glTexImage3D(target, level, internalformat, width, height, depth, border, format, type,
+            pixels);
+    }
+}
+
+void glTexSubImage3D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint zoffset,
+    GLsizei width, GLsizei height, GLsizei depth, GLenum format, GLenum type, const void *pixels) {
+    const bool isValidRequest = FP2GLESWorkarounds::checkValidGlTexSubImage3D(
+        target, level, xoffset, yoffset, zoffset, width, height, depth, format, type, pixels);
+    if (isValidRequest) {
+        __glTexSubImage3D(target, level, xoffset, yoffset, zoffset, width, height, depth, format,
+            type, pixels);
+    }
+}
+
+void glRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width, GLsizei height) {
+    const bool isValidRequest = FP2GLESWorkarounds::checkValidGlRenderbufferStorage(
+        target, internalformat, width, height);
+    if (isValidRequest) {
+        __glRenderbufferStorage(target, internalformat, width, height);
+    }
 }
