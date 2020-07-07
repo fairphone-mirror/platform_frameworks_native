@@ -16,20 +16,19 @@
 
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
-#include <KHR/khrplatform.h>
-
 // Do not include the version-specific GL headers here. Instead, forward-declare
 // the required type declarations:
-typedef unsigned int    EGLBoolean;
-typedef void           *EGLConfig;
-typedef void           *EGLDisplay;
-typedef khronos_int32_t EGLint;
-typedef unsigned int    GLenum;
-typedef khronos_float_t GLfloat;
-typedef khronos_uint8_t GLubyte;
+using EGLBoolean    = unsigned int;
+using EGLConfig     = void*;
+using EGLDisplay    = void*;
+using EGLint        = int32_t;
+using GLenum        = unsigned int;
+using GLfloat       = float;
+using GLubyte       = uint8_t;
 
 
 /** Workaround broken and incomplete graphics driver behavior on the FP2.
