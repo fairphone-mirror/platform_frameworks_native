@@ -41,6 +41,8 @@ const std::vector<std::string> & unstableGLExtension()
 {
     static const std::vector<std::string> exts = {
         "GL_EXT_sRGB",
+        "GL_EXT_sRGB_write_control",
+        "GL_EXT_texture_sRGB_decode",
     };
     return exts;
 }
