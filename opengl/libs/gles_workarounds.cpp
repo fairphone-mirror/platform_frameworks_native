@@ -73,21 +73,40 @@ std::string filterStableExtensions(const std::string & extensions)
         "");
 }
 
-// Common function to check for incompletely supported SRGB formats for
-// textures and renderbuffers.
+// Check for incompletely supported sRGB formats for textures.
 bool isValidTextureFormat(GLenum format, GLenum internalformat) {
     if (fp2_experimental_gles3) {
         // Experimental mode: Expose everything the driver implements.
         return true;
     }
 
-    if (format == GL_SRGB_EXT || format == GL_SRGB_ALPHA_EXT)
-        return false;
+    // The "GL_SRGB*_EXT" enums below are introduced by the extension
+    // GL_EXT_sRGB. They are available as identical, non-*_EXT enum in GLES3 as
+    // well. GL_SRGB8 is available through GLES3 only.
 
-    if (internalformat == GL_SRGB8 || internalformat == GL_SRGB8_ALPHA8
-        || internalformat == GL_SRGB8_ALPHA8_EXT || internalformat == GL_SRGB_EXT
-        || internalformat == GL_SRGB_ALPHA_EXT)
+    if (format == GL_SRGB_EXT || format == GL_SRGB_ALPHA_EXT) {
         return false;
+    }
+
+    if (internalformat == GL_SRGB8 || internalformat == GL_SRGB8_ALPHA8_EXT
+        || internalformat == GL_SRGB_EXT || internalformat == GL_SRGB_ALPHA_EXT) {
+        return false;
+    }
+
+    return true;
+}
+
+// Check for incompletely supported sRGB formats for renderbuffers.
+bool isValidRenderbufferFormat(GLenum internalformat) {
+    if (fp2_experimental_gles3) {
+        return true;
+    }
+
+    // GL_EXT_sRGB adds GL_SRGB8_ALPHA8_EXT for renderbuffers. All other
+    // GL_SRGB* enums get rejected by the driver, if used on renderbuffers.
+    if (internalformat == GL_SRGB8_ALPHA8_EXT) {
+        return false;
+    }
 
     return true;
 }
@@ -160,6 +179,8 @@ bool FP2GLESWorkarounds::checkValidGlTexImage2D(GLenum /*target*/,
     const void * /*data*/)
 {
     if (!isValidTextureFormat(format, internalformat)) {
+        // glTexImage2D and related report GL_INVALID_OPERATION if format,
+        // internal format and type don't match the expected combinations.
         android::egl_set_framework_error_for_currrent_context(GL_INVALID_OPERATION);
         return false;
     }
@@ -211,8 +232,10 @@ bool FP2GLESWorkarounds::checkValidGlRenderbufferStorage(GLenum /*target*/,
     GLsizei /*width*/,
     GLsizei /*height*/)
 {
-    if (!isValidTextureFormat(0, internalformat)) {
-        android::egl_set_framework_error_for_currrent_context(GL_INVALID_OPERATION);
+    if (!isValidRenderbufferFormat(internalformat)) {
+        // glRenderbufferStorage reports GL_INVALID_ENUM in case of wrong
+        // internal format.
+        android::egl_set_framework_error_for_currrent_context(GL_INVALID_ENUM);
         return false;
     }
 
