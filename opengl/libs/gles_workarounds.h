@@ -127,6 +127,16 @@ public:
     static bool checkValidGlRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width,
         GLsizei height);
 
+    /** Apply workarounds to shader sources.
+     *
+     * Modify `shaderString` to fix known issues with Adreno 330 drivers.
+     * `shaderString` must be a copy of one of the strings passed into a call to
+     * `glShaderSource`. It will be modified in-place.
+     *
+     * Returns true if modifications were done.
+     */
+    static bool adjustShaderString(std::string& shaderString);
+
     /** Filter extension list in internal EGL data structures.
      *
      * OpenGL (ES) extensions need to be handled by thread and context. Use

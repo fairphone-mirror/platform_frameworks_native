@@ -4,10 +4,12 @@
 
 #include <cstring>
 #include <regex>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include <cutils/properties.h>
+#include <log/log.h>
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -166,6 +168,45 @@ bool isValidRenderbufferFormat(GLenum internalformat) {
     }
 
     return true;
+}
+
+
+// The following two functions are taken from system/core/base/strings.cpp for
+// convenience. See ./Android.bp for comments on not adding additional link
+// dependencies.
+
+std::vector<std::string> SplitString(const std::string& s,
+                               const std::string& delimiters) {
+  if (delimiters.size() == 0u) {
+    return {};
+  }
+
+  std::vector<std::string> result;
+
+  size_t base = 0;
+  size_t found;
+  while (true) {
+    found = s.find_first_of(delimiters, base);
+    result.push_back(s.substr(base, found - base));
+    if (found == s.npos) break;
+    base = found + 1;
+  }
+
+  return result;
+}
+
+template <typename ContainerT, typename SeparatorT>
+std::string JoinStrings(const ContainerT& things, SeparatorT separator) {
+  if (things.empty()) {
+    return "";
+  }
+
+  std::ostringstream result;
+  result << *things.begin();
+  for (auto it = std::next(things.begin()); it != things.end(); ++it) {
+    result << separator << *it;
+  }
+  return result.str();
 }
 
 }
@@ -335,6 +376,128 @@ bool FP2GLESWorkarounds::checkValidGlRenderbufferStorage(GLenum /*target*/,
     }
 
     return true;
+}
+
+namespace {
+
+enum class FixResult {
+    noMatch,
+    applied,
+    unsupportedCode,
+};
+
+/** Replace a function call on a vec3 by separate calls on each component.
+ *
+ * This helps fixing issues with dFdx/dFdy in GLSL on Adreno 330 that produces
+ * wrong results only when called on a vec3.
+ *
+ * Parameters:
+ *  pos: Starting position to search from; will be updated to the end of the
+ *    current search.
+ */
+FixResult replace_func_vec3_call(std::string& source, const std::string& funcName, size_t& pos) {
+    const size_t callStartPos = source.find(funcName, pos);
+    if (callStartPos == std::string::npos) {
+        return FixResult::noMatch;
+    }
+    // Find opening and closing brackets
+    pos = callStartPos + funcName.length();
+    for (; pos < source.length(); ++pos) {
+        switch (source[pos]) {
+            case ' ':
+                continue;
+            case '\t':
+                continue;
+            case '\n':
+                continue;
+            case '\r':
+                continue;
+            case '(':
+                break;
+            default:
+                return FixResult::unsupportedCode;
+        }
+        break;
+    }
+    if (pos == source.length()) {
+        pos = std::string::npos;
+        return FixResult::unsupportedCode;
+    }
+    const size_t openingPos = pos;
+    const size_t closingPos = source.find(")", openingPos);
+    if (closingPos == std::string::npos) {
+        return FixResult::unsupportedCode;
+    }
+
+    // Extract the parameter part of call like `func(var.xyz)`:
+    const std::string paramStr = source.substr(
+        openingPos + 1, closingPos - openingPos - 1);
+    // Match `some_variable_42.swizzle`, where `swizzle` can use either of the
+    // sets `xyzw`, `rgba` or `stpq` (according to GLSL specs). We are looking
+    // for cases where the result is a vec3, thus typically `.xyz`.
+    static const std::regex paramRegex(
+        R"(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\.\s*([xyzwrgbastpq]{3,3})\s*)");
+    std::smatch match;
+    if (!std::regex_match(paramStr, match, paramRegex) || (match.size() != 3)) {
+        return FixResult::unsupportedCode;
+    }
+    const std::string& var = match[1];
+    const std::string& swizzle = match[2];
+    const std::string fixedCall = "vec3("
+        + funcName + "(" + var + "." + swizzle[0] + "), "
+        + funcName + "(" + var + "." + swizzle[1] + "), "
+        + funcName + "(" + var + "." + swizzle[2] + "))";
+    source.replace(callStartPos, closingPos - callStartPos + 1, fixedCall);
+    pos = callStartPos + fixedCall.length();
+    return FixResult::applied;
+}
+
+}
+
+bool FP2GLESWorkarounds::adjustShaderString(std::string& shaderString) {
+    // This is an extremely simplistic implementation. To do this properly, we
+    // would need a complete syntax analysis.
+    int appliedCount = 0;
+    int unsupportedCount = 0;
+    auto lines = SplitString(shaderString, "\n\r");
+    for (auto & line : lines) {
+        if (line.length() > 0 && line[0] == '#') {
+            continue;
+        }
+        const auto commentStart = line.find("//");
+        if (commentStart != std::string::npos) {
+            line.resize(commentStart);
+        }
+        auto loopFix = [&appliedCount, &unsupportedCount] (
+            std::string& source, const std::string& funcName)
+            {
+                size_t pos = 0;
+                while (pos != source.length()) {
+                    switch (replace_func_vec3_call(source, funcName, pos)) {
+                        case FixResult::unsupportedCode:
+                            ++unsupportedCount;
+                            return;
+                        case FixResult::noMatch:
+                            return;
+                        case FixResult::applied:
+                            ++appliedCount;
+                            break;
+                    }
+                }
+            };
+        loopFix(line, "dFdx");
+        loopFix(line, "dFdy");
+    }
+    if (appliedCount) {
+        shaderString = JoinStrings(lines, "\n");
+    }
+    if (appliedCount != 0 || unsupportedCount != 0) {
+        ALOGI("glShaderSource: Found calls to dFdx/dFdy with vec3 parameter "
+            "(broken on current Adreno 330 driver):");
+        ALOGI("    Fixed cases: %i", appliedCount);
+        ALOGI("    Unsupported code/syntax: %i", unsupportedCount);
+    }
+    return appliedCount != 0;
 }
 
 void FP2GLESWorkarounds::filterEGLContextExtensions(

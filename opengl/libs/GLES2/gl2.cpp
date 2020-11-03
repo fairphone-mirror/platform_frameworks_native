@@ -19,6 +19,7 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <vector>
 
 #include <log/log.h>
 #include <cutils/properties.h>
@@ -311,6 +312,8 @@ extern "C" {
         const void *pixels);
     void __glRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width,
         GLsizei height);
+    void __glShaderSource(GLuint shader, GLsizei count, const GLchar *const*string,
+        const GLint *length);
 
 }
 
@@ -441,5 +444,57 @@ void glRenderbufferStorage(GLenum target, GLenum internalformat, GLsizei width, 
         target, internalformat, width, height);
     if (isValidRequest) {
         __glRenderbufferStorage(target, internalformat, width, height);
+    }
+}
+
+
+void glShaderSource(const GLuint shader, const GLsizei count, const GLchar *const*string,
+    const GLint *length) {
+
+    if (count < 0 || !string) {
+        // Let the driver handle error reporting for invalid parameters.
+        __glShaderSource(shader, count, string, length);
+        return;
+    }
+
+    bool anyModified = false;
+    std::vector<std::string> modifiedStrings(count);
+    std::vector<const GLchar*> modifiedStringPtrs(count, nullptr);
+    std::vector<GLint> modifiedLengths(count);
+    for (GLsizei i = 0; i < count; ++i) {
+        const GLsizei inputLength = length ? length[i] : -1;
+        const GLchar *const inputString = string[i];
+        // default-initialize with unmodified values
+        modifiedLengths[i] = inputLength;
+        modifiedStringPtrs[i] = inputString;
+
+        if (!inputString) {
+            // This case would be a bug. Let the driver handle it.
+            continue;
+        }
+        std::string str;
+        if (inputLength > 0) {
+            // Length is explicitly defined.
+            str = std::string(inputString, inputLength);
+        } else if (inputLength < 0) {
+            // String is null-terminated.
+            str = std::string(inputString);
+        } else {
+            // Unexpected, probably also a bug on application-side.
+            continue;
+        }
+        if (FP2GLESWorkarounds::adjustShaderString(str)) {
+            modifiedLengths[i] = str.length();
+            modifiedStrings[i] = std::move(str);
+            modifiedStringPtrs[i] = modifiedStrings[i].c_str();
+            anyModified = true;
+        }
+    }
+
+    if (!anyModified) {
+        __glShaderSource(shader, count, string, length);
+    } else {
+        __glShaderSource(shader, count,
+            modifiedStringPtrs.data(), modifiedLengths.data());
     }
 }
