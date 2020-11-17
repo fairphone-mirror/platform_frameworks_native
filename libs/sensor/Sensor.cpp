@@ -55,7 +55,10 @@ Sensor::Sensor(struct sensor_t const& hwSensor, const uuid_t& uuid, int halVersi
 
     // Set fifo event count zero for older devices which do not support batching. Fused
     // sensors also have their fifo counts set to zero.
-    if (halVersion > SENSORS_DEVICE_API_VERSION_1_0) {
+    if (halVersion > SENSORS_DEVICE_API_VERSION_1_0
+        // HANDLE_ACCELERATION == 0. FP2 accelerometer doesn't support batching properly.
+        && mHandle != 0
+    ) {
         mFifoReservedEventCount = hwSensor.fifoReservedEventCount;
         mFifoMaxEventCount = hwSensor.fifoMaxEventCount;
     } else {
