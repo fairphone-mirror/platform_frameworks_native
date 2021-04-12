@@ -452,9 +452,8 @@ FixResult replace_func_vec3_call(std::string& source, const std::string& funcNam
     return FixResult::applied;
 }
 
-}
-
-bool FP2GLESWorkarounds::adjustShaderString(std::string& shaderString) {
+bool apply_GLSL_vec3_workaround(std::string& shaderString)
+{
     // This is an extremely simplistic implementation. To do this properly, we
     // would need a complete syntax analysis.
     int appliedCount = 0;
@@ -498,6 +497,70 @@ bool FP2GLESWorkarounds::adjustShaderString(std::string& shaderString) {
         ALOGI("    Unsupported code/syntax: %i", unsupportedCount);
     }
     return appliedCount != 0;
+}
+
+/** Workaround broken structs with highp in fragment shaders.
+ *
+ * Adreno 330 and other driver seem to have issues with highp struct members in
+ * fragment shaders. For what we know, it affects vec3 members of structs only.
+ */
+bool apply_GLSL_frag_highp_workaround(std::string& shaderString)
+{
+    // First, drop simple comments.
+    static const auto commentRegex = std::regex(R"(//.*)");
+    // Again, actual syntax parsing would be required, but we'll keep it simpler
+    // for now. Match only simple structs, ignore cases with nesting or macros.
+    static const auto simpleStructRegex = std::regex(
+        R"(struct\s+[a-zA-Z_][a-zA-Z0-9_]*\s*\{[\sa-zA-Z0-9;\[\]]+\}\s*;)");
+    // What what we know, only highp vec3's are affected.
+    static const auto highpVec3Regex = std::regex(R"(highp\s+vec3)");
+    static const char* mediumpVec3 = "mediump vec3";
+
+    int appliedCount = 0;
+
+    // Construct a new shader; all current contents remaining to be processed.
+    auto remainder = std::regex_replace(shaderString, commentRegex, "");
+    std::string newShader;
+    std::smatch structMatch;
+    while (true) {
+        if (!std::regex_search(remainder, structMatch, simpleStructRegex)) {
+            // Nothing else matches, so just take over the remainder as-is.
+            newShader.append(std::move(remainder));
+            break;
+        }
+
+        // Take over the non-matching prefix.
+        newShader.append(structMatch.prefix());
+
+        // Check for and replace highp within the match
+        auto adjustedStruct = std::regex_replace(
+            structMatch.str(), highpVec3Regex, mediumpVec3);
+        newShader.append(adjustedStruct);
+        if (adjustedStruct != structMatch.str()) {
+            ++appliedCount;
+        }
+
+        // Continue processing the rest.
+        remainder = structMatch.suffix();
+    }
+
+    if (appliedCount == 0) {
+        return false;
+    }
+
+    shaderString = newShader;
+    ALOGI("glShaderSource: Applied workaround for highp vec3 in structs "
+        "(broken on current Adreno 330 driver):");
+    ALOGI("    Fixed cases: %i", appliedCount);
+    return true;
+}
+
+}
+
+bool FP2GLESWorkarounds::adjustShaderString(std::string& shaderString) {
+    bool vec3_applied = apply_GLSL_vec3_workaround(shaderString);
+    bool highp_applied = apply_GLSL_frag_highp_workaround(shaderString);
+    return vec3_applied || highp_applied;
 }
 
 void FP2GLESWorkarounds::filterEGLContextExtensions(
