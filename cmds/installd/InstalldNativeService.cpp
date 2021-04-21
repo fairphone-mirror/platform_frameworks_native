@@ -1826,7 +1826,8 @@ binder::Status InstalldNativeService::getUserSize(const std::unique_ptr<std::str
         ATRACE_END();
     } else {
         ATRACE_BEGIN("obb");
-        auto obbPath = create_data_path(uuid_) + "/media/obb";
+        auto obbPath = StringPrintf("%s/Android/obb",
+                create_data_media_path(uuid_, userId).c_str());
         calculate_tree_size(obbPath, &extStats.codeSize);
         ATRACE_END();
 
@@ -1865,6 +1866,9 @@ binder::Status InstalldNativeService::getUserSize(const std::unique_ptr<std::str
             calculate_tree_size(create_primary_cur_profile_dir_path(userId), &stats.dataSize);
             ATRACE_END();
         }
+
+        // obb files are collected again in collectManualExternalStatsForUser, so only keep it once
+        extStats.dataSize -= extStats.codeSize;
     }
 
     std::vector<int64_t> ret;
