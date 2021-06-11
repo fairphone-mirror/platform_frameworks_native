@@ -20,6 +20,7 @@
 #include <sys/types.h>
 
 #include <cutils/native_handle.h>
+#include <cutils/properties.h>
 #include <log/log.h>
 #include <utils/Errors.h>
 #include <utils/RefBase.h>
@@ -68,7 +69,8 @@ public:
         while (n) {
             n--;
             reply.read(s);
-            if (s.getType() == Sensor::TYPE_GYROSCOPE) {
+            if (s.getType() == Sensor::TYPE_GYROSCOPE &&
+                !property_get_bool("persist.fp2.use_gyroscope", false)) {
                 ALOGW("BpSensorServer::getSensorList: Skipping sensor with insufficient precision: "
                     "\"%s\", vendor \"%s\"",
                     s.getName().c_str(), s.getVendor().c_str());
