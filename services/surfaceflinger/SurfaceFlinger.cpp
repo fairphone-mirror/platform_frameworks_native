@@ -544,13 +544,6 @@ void SurfaceFlinger::bootFinished()
     if (window != 0) {
         window->linkToDeath(static_cast<IBinder::DeathRecipient*>(this));
     }
-    sp<IBinder> input(defaultServiceManager()->getService(
-            String16("inputflinger")));
-    if (input == nullptr) {
-        ALOGE("Failed to link to input service");
-    } else {
-        mInputFlinger = interface_cast<IInputFlinger>(input);
-    }
 
     if (mVrFlinger) {
       mVrFlinger->OnBootFinished();
@@ -565,7 +558,15 @@ void SurfaceFlinger::bootFinished()
     LOG_EVENT_LONG(LOGTAG_SF_STOP_BOOTANIM,
                    ns2ms(systemTime(SYSTEM_TIME_MONOTONIC)));
 
-    postMessageAsync(new LambdaMessage([this]() NO_THREAD_SAFETY_ANALYSIS {
+    sp<IBinder> input(defaultServiceManager()->getService(String16("inputflinger")));
+
+    postMessageAsync(new LambdaMessage([=]() NO_THREAD_SAFETY_ANALYSIS {
+        if (input == nullptr) {
+            ALOGE("Failed to link to input service");
+        } else {
+            mInputFlinger = interface_cast<IInputFlinger>(input);
+        }
+
         readPersistentProperties();
         mBootStage = BootStage::FINISHED;
 
@@ -1265,22 +1266,15 @@ status_t SurfaceFlinger::injectVSync(nsecs_t when) {
     return NO_ERROR;
 }
 
-status_t SurfaceFlinger::getLayerDebugInfo(std::vector<LayerDebugInfo>* outLayers) const
+status_t SurfaceFlinger::getLayerDebugInfo(std::vector<LayerDebugInfo>* outLayers)
         NO_THREAD_SAFETY_ANALYSIS {
-    // Try to acquire a lock for 1s, fail gracefully
-    const status_t err = mStateLock.timedLock(s2ns(1));
-    const bool locked = (err == NO_ERROR);
-    if (!locked) {
-        ALOGE("LayerDebugInfo: SurfaceFlinger unresponsive (%s [%d]) - exit", strerror(-err), err);
-        return TIMED_OUT;
-    }
-
     outLayers->clear();
-    mCurrentState.traverseInZOrder([&](Layer* layer) {
-        outLayers->push_back(layer->getLayerDebugInfo());
-    });
+    postMessageSync(new LambdaMessage([&]() { 
+            mDrawingState.traverseInZOrder([&](Layer* layer) {
+            outLayers->push_back(layer->getLayerDebugInfo());
+        });
 
-    mStateLock.unlock();
+    }));
     return NO_ERROR;
 }
 
