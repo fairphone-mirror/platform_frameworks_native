@@ -7,6 +7,30 @@ package {
     default_applicable_licenses: ["frameworks_native_license"],
 }
 
+//#if defined(PXLW_IRIS)
+soong_config_module_type {
+    name: "iris_libsurfaceflinger_cc_defaults",
+    module_type: "cc_defaults",
+    config_namespace: "pxlw_iris",
+    bool_variables: [
+        "enable_iris",
+    ],
+    properties: [
+        "cflags",
+        "shared_libs",
+    ],
+}
+
+iris_libsurfaceflinger_cc_defaults {
+    name: "iris_libsurfaceflinger_defaults",
+    cflags: ["-DPXLW_IRIS"],
+    shared_libs: [
+        "vendor.pixelworks.hardware.display@1.0",
+    ],
+}
+//#endif PXLW_IRIS
+
+
 soong_config_module_type {
       name: "libdisplayconfig_cc_defaults",
       module_type: "cc_defaults",
@@ -94,6 +118,9 @@ cc_defaults {
         "libdisplayconfig_defaults",
         "unfieddraw_defaults",
         "libdisplayconfigaidl_defaults",
+//#if defined(PXLW_IRIS)
+        "iris_libsurfaceflinger_defaults",
+//#endif PXLW_IRIS
     ],
     cflags: [
         "-DLOG_TAG=\"SurfaceFlinger\"",

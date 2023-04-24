@@ -158,6 +158,12 @@
 #include "QtiGralloc.h"
 #include "layer_extn_intf.h"
 
+#if defined(PXLW_IRIS)
+#include <vendor/pixelworks/hardware/display/1.0/IIris.h>
+using ::android::hardware::hidl_vec;
+using ::vendor::pixelworks::hardware::display::V1_0::IIris;
+#endif
+
 #ifdef QTI_DISPLAY_CONFIG_ENABLED
 #include <hardware/hwcomposer_defs.h>
 #include <config/client_interface.h>
@@ -3068,9 +3074,12 @@ void SurfaceFlinger::setDisplayAnimating() {
     bool hasScreenshot = false;
     for (const auto& pair : FTL_FAKE_GUARD(mStateLock, mDisplays)) {
         const auto& displayDevice = pair.second;
+#if defined(PXLW_IRIS)
+#else
         if (!IsDisplayExternalOrVirtual(displayDevice)) {
            continue;
         }
+#endif
         const auto display = displayDevice->getCompositionDisplay();
         for (const auto& layer : mDrawingState.layersSortedByZ) {
             // only consider the layers on the given layer stack
@@ -3087,14 +3096,39 @@ void SurfaceFlinger::setDisplayAnimating() {
     for (auto& layer : mLayersPendingRefresh) {
         for (const auto& [token, displayDevice] : FTL_FAKE_GUARD(mStateLock, mDisplays)) {
             auto display = displayDevice->getCompositionDisplay();
+#if defined(PXLW_IRIS)
+#else
             if (!IsDisplayExternalOrVirtual(displayDevice)) {
                continue;
             }
+#endif
             if (display->includesLayer(layer->getOutputFilter())) {
                hasScreenshot |= layer->isScreenshot();
             }
         }
     }
+
+#if defined(PXLW_IRIS)
+    for (const auto& [token, displayDevice] : FTL_FAKE_GUARD(mStateLock, mDisplays)) {
+        if (IsDisplayExternalOrVirtual(displayDevice)) {
+           continue;
+        }
+        if (hasScreenshot != mHasScreenshot) {
+            ::android::sp<IIris> iris = IIris::tryGetService();
+            if (iris != nullptr) {
+                hidl_vec<int32_t> v(std::vector<int32_t>{hasScreenshot});
+                auto rc = iris->irisConfigureSet(50 /*HDR_SETTING*/, v);
+                if (!rc.isOk()) {
+                    ALOGE("IRIS_LOG_VD Failed to call IIris service");
+                } else {
+                    ALOGE("IRIS_LOG_VD hasScreenshot %d", hasScreenshot);
+                }
+            }
+            mHasScreenshot = hasScreenshot;
+        }
+    }
+#endif
+
 #ifdef QTI_DISPLAY_CONFIG_ENABLED
     for (const auto& [token, displayDevice] : FTL_FAKE_GUARD(mStateLock, mDisplays)) {
         if (!IsDisplayExternalOrVirtual(displayDevice)) {
