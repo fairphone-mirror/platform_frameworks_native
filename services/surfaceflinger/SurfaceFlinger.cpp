@@ -8896,6 +8896,12 @@ bool SurfaceFlinger::canAllocateHwcDisplayIdForVDS(uint64_t usage) {
     bool canAllocate = mAllowHwcForVDS || (isWfd && mAllowHwcForWFD) || (isWfd &&
                        mFirstApiLevel < __ANDROID_API_T__);
 
+    if (isWfd) {
+        canAllocate = true;
+        ALOGI("%s enable just for WFD: canAllocate= %d", __func__, canAllocate);
+    }
+
+
     if (canAllocate) {
         enableHalVirtualDisplays(true);
     }
