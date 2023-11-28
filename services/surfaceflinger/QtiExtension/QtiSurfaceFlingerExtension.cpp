@@ -13,6 +13,12 @@
 #include <aidl/vendor/qti/hardware/display/config/IDisplayConfigCallback.h>
 #include <vendor/qti/hardware/display/composer/3.1/IQtiComposerClient.h>
 
+#if defined(PXLW_IRIS)
+#include <vendor/pixelworks/hardware/display/1.0/IIris.h>
+using ::android::hardware::hidl_vec;
+using ::vendor::pixelworks::hardware::display::V1_0::IIris;
+#endif
+
 #include <android-base/properties.h>
 #include <android/binder_manager.h>
 #include <android/binder_process.h>
@@ -1468,10 +1474,13 @@ void QtiSurfaceFlingerExtension::qtiSetDisplayAnimating() {
     uint32_t hwcDisplayId;
     for (const auto& pair : FTL_FAKE_GUARD(mQtiFlinger->mStateLock, mQtiFlinger->mDisplays)) {
         const auto& displayDevice = pair.second;
+#if defined(PXLW_IRIS)
+#else
         if (qtiGetHwcDisplayId(displayDevice, &hwcDisplayId) &&
             qtiIsInternalDisplay(displayDevice)) {
             continue;
         }
+#endif
 
         mQtiFlinger->mDrawingState.traverse([&](Layer* layer) {
             if (layer->getLayerStack() == displayDevice->getLayerStack()) {
@@ -1484,15 +1493,41 @@ void QtiSurfaceFlingerExtension::qtiSetDisplayAnimating() {
         for (const auto& [token, displayDevice] :
              FTL_FAKE_GUARD(mQtiFlinger->mStateLock, mQtiFlinger->mDisplays)) {
             auto display = displayDevice->getCompositionDisplay();
+#if defined(PXLW_IRIS)
+#else
             if (qtiGetHwcDisplayId(displayDevice, &hwcDisplayId) &&
                 qtiIsInternalDisplay(displayDevice)) {
                 continue;
             }
+#endif
             if (display->includesLayer(layer->getOutputFilter())) {
                 hasScreenshot |= qtiIsScreenshot(layer->getName());
             }
         }
     }
+
+#if defined(PXLW_IRIS)
+    for (const auto& [token, displayDevice] :
+         FTL_FAKE_GUARD(mQtiFlinger->mStateLock, mQtiFlinger->mDisplays)) {
+        if (!(qtiGetHwcDisplayId(displayDevice, &hwcDisplayId) &&
+            qtiIsInternalDisplay(displayDevice))) {
+            continue;
+        }
+        if (hasScreenshot != mQtiHasScreenshot) {
+            ::android::sp<IIris> iris = IIris::tryGetService();
+            if (iris != nullptr) {
+                hidl_vec<int32_t> v(std::vector<int32_t>{hasScreenshot});
+                auto rc = iris->irisConfigureSet(50 /*HDR_SETTING*/, v);
+                if (!rc.isOk()) {
+                    ALOGE("IRIS_LOG_VD Failed to call IIris service");
+                } else {
+                    ALOGE("IRIS_LOG_VD hasScreenshot %d", hasScreenshot);
+                }
+            }
+            mQtiHasScreenshot = hasScreenshot;
+        }
+    }
+#endif
 
     for (const auto& [token, displayDevice] :
          FTL_FAKE_GUARD(mQtiFlinger->mStateLock, mQtiFlinger->mDisplays)) {
