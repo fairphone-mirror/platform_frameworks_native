@@ -15,7 +15,9 @@
 -->
 
 <!-- This is the standard set of telephony features for a GSM phone. -->
+<!--[BUG]-Add by shaopan.tang 2024-11-18 FP5U-846 Enable FEATURE_TELEPHONY_SUBSCRIPTION -->
 <permissions>
     <feature name="android.hardware.telephony" />
     <feature name="android.hardware.telephony.gsm" />
+    <feature name="android.hardware.telephony.subscription" />
 </permissions>
