@@ -207,4 +207,30 @@ bool QtiNullExtension::qtiFbScalingOnDisplayChange(const wp<IBinder>& displayTok
 
 void QtiNullExtension::qtiFbScalingOnPowerChange(sp<DisplayDevice> display) {}
 
+/*
+ * Methods for multiple displays
+ */
+// enable/disable h/w composer event
+// TODO: this should be made accessible only to EventThread
+// main thread function to enable/disable h/w composer event
+sp<DisplayDevice> QtiNullExtension::qtiGetVsyncSource() {
+    return nullptr;
+}
+void QtiNullExtension::qtiUpdateVsyncSource() {}
+nsecs_t QtiNullExtension::qtiGetVsyncPeriodFromHWC() const {
+    return 0;
+}
+void QtiNullExtension::qtiUpdateNextVsyncSource() {}
+void QtiNullExtension::qtiUpdateActiveVsyncSource() {}
+bool QtiNullExtension::qtiIsDummyDisplay(const sp<DisplayDevice>& display) {
+    return false;
+}
+
+void QtiNullExtension::qtiUpdateActiveDisplayOnRemove(PhysicalDisplayId id) {}
+void QtiNullExtension::qtiUpdateActiveDisplayOnPowerOn(PhysicalDisplayId id) {}
+void QtiNullExtension::qtiUpdateActiveDisplayOnPowerOff(PhysicalDisplayId id) {}
+sp<DisplayDevice> QtiNullExtension::qtiGetVsyncSourceForFence() {
+    return nullptr;
+}
+
 } // namespace android::surfaceflingerextension

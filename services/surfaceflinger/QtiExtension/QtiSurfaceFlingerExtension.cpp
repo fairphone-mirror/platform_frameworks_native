@@ -372,8 +372,24 @@ void QtiSurfaceFlingerExtension::qtiUpdateDisplaysList(sp<DisplayDevice> display
         return;
     }
 
+    bool prioritizePluggable =
+            (!qtiIsInternalDisplay(display) &&
+             mQtiFeatureManager->qtiIsExtensionFeatureEnabled(kPluggableVsyncPrioritized));
+
     if (addDisplay) {
-        mQtiDisplaysList.push_back(display);
+        if (prioritizePluggable) {
+            // Insert the pluggable display just before the first built-in display
+            // so that the earlier pluggable display remains the V-sync source.
+            auto it = mQtiDisplaysList.begin();
+            for (; it != mQtiDisplaysList.end(); it++) {
+                if (qtiIsInternalDisplay(*it)) {
+                    break;
+                }
+            }
+            mQtiDisplaysList.insert(it, display);
+        } else {
+            mQtiDisplaysList.push_back(display);
+        }
         ALOGV("Added display %s cur_size:%u", to_string(display->getPhysicalId()).c_str(),
               mQtiDisplaysList.size());
     } else {
@@ -1584,6 +1600,7 @@ void QtiSurfaceFlingerExtension::qtiSetDisplayAnimating() {
         }
 
         qtiGetHwcDisplayId(displayDevice, &hwcDisplayId);
+        bool mQtiHasScreenshot = (mQtiHasScreenshotSet.count(hwcDisplayId) > 0);
         if (hasScreenshot != mQtiHasScreenshot) {
             if (mQtiDisplayConfigAidl) {
                 ALOGV("Trying to notify DP animation to composer using DisplayConfigAIDL.");
@@ -1592,8 +1609,11 @@ void QtiSurfaceFlingerExtension::qtiSetDisplayAnimating() {
                 ALOGV("Trying to notify DP animation to composer using DisplayConfigHIDL.");
                 mQtiDisplayConfigHidl->SetDisplayAnimating(hwcDisplayId, hasScreenshot);
             }
-
-            mQtiHasScreenshot = hasScreenshot;
+            if (mQtiHasScreenshot) {  // hasScreenshot previously active, setting in-active now
+                mQtiHasScreenshotSet.erase(hwcDisplayId);
+            } else{  // hasScreenshot previously in-active for this display, setting active now
+                mQtiHasScreenshotSet.insert(hwcDisplayId);
+            }
         }
     }
 }
@@ -2212,6 +2232,197 @@ void QtiSurfaceFlingerExtension::qtiFbScalingOnPowerChange(sp<DisplayDevice> dis
     // releases the FrameBuffer that was acquired as part of queueBuffer()
     compositionDisplay->getRenderSurface()->onPresentDisplayCompleted();
     mQtiDisplaySizeChanged = false;
+}
+
+/*
+ * Methods for multiple displays
+ */
+// enable/disable h/w composer event
+// TODO: this should be made accessible only to EventThread
+// main thread function to enable/disable h/w composer event
+sp<DisplayDevice> QtiSurfaceFlingerExtension::qtiGetVsyncSource() {
+    // Return the vsync source from the active displays based on the order in which they are
+    // connected.
+    // Normally the order of priority is Primary (Built-in/Pluggable) followed by Secondary
+    // built-ins followed by Pluggable. But if mPluggableVsyncPrioritized is true then the
+    // order of priority is Pluggables followed by Primary and Secondary built-ins.
+    bool vsyncSourceReliableOnDoze =
+            mQtiFeatureManager->qtiIsExtensionFeatureEnabled(kVsyncSourceReliableOnDoze);
+
+    for (const auto& display : mQtiDisplaysList) {
+        auto mode = display->getPowerMode();
+        if (display->isVirtual() || (mode == hal::PowerMode::OFF) ||
+            (mode == hal::PowerMode::DOZE_SUSPEND)) {
+            continue;
+        }
+
+        if (vsyncSourceReliableOnDoze) {
+            if ((mode == hal::PowerMode::ON) || (mode == hal::PowerMode::DOZE)) {
+                return display;
+            }
+        } else if (mode == hal::PowerMode::ON) {
+            return display;
+        }
+    }
+
+    // In-case active displays are not present, source the vsync from
+    // the display which is in doze mode even if it is unreliable
+    // in the same order of display priority as above.
+    if (!vsyncSourceReliableOnDoze) {
+        for (const auto& display : mQtiDisplaysList) {
+            auto mode = display->getPowerMode();
+            if (display->isVirtual()) {
+                continue;
+            }
+
+            if (mode == hal::PowerMode::DOZE) {
+                return display;
+            }
+        }
+    }
+
+    return NULL;
+}
+
+void QtiSurfaceFlingerExtension::qtiUpdateVsyncSource() NO_THREAD_SAFETY_ANALYSIS {
+    std::lock_guard<std::recursive_mutex> lockVsync(mQtiVsyncLock);
+    mQtiNextVsyncSource = qtiGetVsyncSource();
+
+    if (mQtiNextVsyncSource == NULL) {
+        // Switch off vsync for the last enabled source
+        if (mQtiActiveVsyncSource) {
+            mQtiFlinger->mScheduler->disableHardwareVsync(mQtiActiveVsyncSource->getPhysicalId(),
+                                                          true);
+        }
+        mQtiFlinger->mScheduler->enableSyntheticVsync();
+    } else if (mQtiNextVsyncSource && (mQtiActiveVsyncSource == NULL)) {
+        const auto activeMode = mQtiNextVsyncSource->refreshRateSelector().getActiveMode().modePtr;
+        mQtiFlinger->mScheduler->enableSyntheticVsync(false);
+        mQtiFlinger->mScheduler->resyncToHardwareVsync(mQtiNextVsyncSource->getPhysicalId(), true,
+                                                       activeMode.get());
+    } else if ((mQtiNextVsyncSource != NULL) && (mQtiActiveVsyncSource != NULL)) {
+        // Switch vsync to the new source
+        const auto activeMode = mQtiNextVsyncSource->refreshRateSelector().getActiveMode().modePtr;
+        mQtiFlinger->mScheduler->disableHardwareVsync(mQtiActiveVsyncSource->getPhysicalId(), true);
+        mQtiFlinger->mScheduler->resyncToHardwareVsync(mQtiNextVsyncSource->getPhysicalId(), true,
+                                                       activeMode.get());
+    }
+
+    if (mQtiNextVsyncSource) {
+        mQtiActiveVsyncSource = mQtiNextVsyncSource;
+        mQtiNextVsyncSource = NULL;
+    }
+}
+
+nsecs_t QtiSurfaceFlingerExtension::qtiGetVsyncPeriodFromHWC() const {
+    Mutex::Autolock lock(mQtiFlinger->mStateLock);
+    std::lock_guard<std::recursive_mutex> lockVsync(mQtiVsyncLock);
+
+    auto display = mQtiFlinger->getDefaultDisplayDeviceLocked();
+    if (mQtiNextVsyncSource) {
+        display = mQtiNextVsyncSource;
+    } else if (mQtiActiveVsyncSource) {
+        display = mQtiActiveVsyncSource;
+    }
+
+    if (display) {
+        return display->getVsyncPeriodFromHWC();
+    }
+
+    return 0;
+}
+
+void QtiSurfaceFlingerExtension::qtiUpdateNextVsyncSource() {
+    std::lock_guard<std::recursive_mutex> lockVsync(mQtiVsyncLock);
+    mQtiNextVsyncSource = qtiGetVsyncSource();
+}
+
+void QtiSurfaceFlingerExtension::qtiUpdateActiveVsyncSource() {
+    std::lock_guard<std::recursive_mutex> lockVsync(mQtiVsyncLock);
+    mQtiActiveVsyncSource = qtiGetVsyncSource();
+}
+
+bool QtiSurfaceFlingerExtension::qtiIsDummyDisplay(const sp<DisplayDevice>& display) {
+    return (std::find(mQtiDisplaysList.begin(), mQtiDisplaysList.end(), display) ==
+            mQtiDisplaysList.end());
+}
+
+void QtiSurfaceFlingerExtension::qtiUpdateActiveDisplayOnRemove(PhysicalDisplayId id)
+        FTL_FAKE_GUARD(kMainThreadContext) {
+    ConditionalLock lock(mQtiFlinger->mStateLock,
+                         std::this_thread::get_id() != mQtiFlinger->mMainThreadId);
+    // Need to check if the display we are removing is the active display
+    // If so make the next display in the display list the active display
+    if (id != mQtiFlinger->mActiveDisplayId) {
+         return;
+    }
+
+    for (const auto& displayTemp : mQtiDisplaysList) {
+        if (displayTemp->getPhysicalId() != id && displayTemp->isPoweredOn()) {
+            // once we find the next non-active display make it the active display
+            // if it is powered on
+
+            mQtiFlinger->onActiveDisplayChangedLocked(nullptr, *displayTemp);
+            qtiUpdateVsyncSource();
+            return;
+        }
+    }
+    // If no displays are powered on we set the next non-active display as active
+    for (const auto& displayTemp : mQtiDisplaysList) {
+        if (displayTemp->getPhysicalId() != id) {
+            mQtiFlinger->onActiveDisplayChangedLocked(nullptr, *displayTemp);
+            qtiUpdateVsyncSource();
+            return;
+        }
+    }
+}
+void QtiSurfaceFlingerExtension::qtiUpdateActiveDisplayOnPowerOn(PhysicalDisplayId id)
+        FTL_FAKE_GUARD(kMainThreadContext) {
+    ConditionalLock lock(mQtiFlinger->mStateLock,
+                         std::this_thread::get_id() != mQtiFlinger->mMainThreadId);
+
+    // If turning on a display that is powered off and active display is on
+    // must determine if this display should be the active display
+    for (const auto& displayTemp : mQtiDisplaysList) {
+        // If the active display is before the current display in displays list leave
+        // the current active display
+        if (displayTemp->getPhysicalId() == mQtiFlinger->mActiveDisplayId) {
+            break;
+        }
+
+        // Switch to the display being powered on
+        if (displayTemp->getPhysicalId() == id) {
+            mQtiFlinger->onActiveDisplayChangedLocked(nullptr, *displayTemp);
+            // Update with new vsync source
+            qtiUpdateVsyncSource();
+            break;
+        }
+    }
+}
+
+void QtiSurfaceFlingerExtension::qtiUpdateActiveDisplayOnPowerOff(PhysicalDisplayId id)
+        FTL_FAKE_GUARD(kMainThreadContext) {
+    ConditionalLock lock(mQtiFlinger->mStateLock,
+                         std::this_thread::get_id() != mQtiFlinger->mMainThreadId);
+
+    // Update active display
+    if (id == mQtiFlinger->mActiveDisplayId) {
+        for (const auto& displayTemp : mQtiDisplaysList) {
+            // Dont switch to a new display if its not powered on.
+            if (displayTemp->getPhysicalId() != id && displayTemp->isPoweredOn()) {
+                // Once we find the next non-active display make it the active display
+                mQtiFlinger->onActiveDisplayChangedLocked(nullptr, *displayTemp);
+                break;
+            }
+        }
+    }
+}
+sp<DisplayDevice> QtiSurfaceFlingerExtension::qtiGetVsyncSourceForFence() {
+    sp<DisplayDevice> vSyncSource = mQtiNextVsyncSource;
+    if (mQtiNextVsyncSource == NULL) {
+        vSyncSource = mQtiActiveVsyncSource;
+    }
+    return vSyncSource;
 }
 
 /*
