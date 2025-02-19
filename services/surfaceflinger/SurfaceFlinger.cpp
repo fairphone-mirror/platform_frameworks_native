@@ -3046,6 +3046,10 @@ CompositeResultsPerDisplay SurfaceFlinger::composite(
             }
         }
 
+        /* QTI_BEGIN */
+        mQtiSFExtnIntf->qtiDumpDrawCycle(true);
+        /* QTI_END */
+
         mCompositionEngine->present(refreshArgs);
         moveSnapshotsFromCompositionArgs(refreshArgs, layers);
 
@@ -3467,6 +3471,7 @@ void SurfaceFlinger::onCompositionPresented(PhysicalDisplayId pacesetterId,
     }
 
     /* QTI_BEGIN */
+    mQtiSFExtnIntf->qtiDumpDrawCycle(false);
     mQtiSFExtnIntf->qtiUpdateSmomoState();
     /* QTI_END */
     if (hasPacesetterDisplay && !pacesetterDisplay->isPoweredOn()) {
@@ -5537,7 +5542,7 @@ bool SurfaceFlinger::shouldLatchUnsignaled(const layer_state_t& state, size_t nu
 
 status_t SurfaceFlinger::setTransactionState(
         const FrameTimelineInfo& frameTimelineInfo, Vector<ComposerState>& states,
-        const Vector<DisplayState>& displays, uint32_t flags, const sp<IBinder>& applyToken,
+        Vector<DisplayState>& displays, uint32_t flags, const sp<IBinder>& applyToken,
         InputWindowCommands inputWindowCommands, int64_t desiredPresentTime, bool isAutoTimestamp,
         const std::vector<client_cache_t>& uncacheBuffers, bool hasListenerCallbacks,
         const std::vector<ListenerCallbacks>& listenerCallbacks, uint64_t transactionId,
@@ -5559,7 +5564,7 @@ status_t SurfaceFlinger::setTransactionState(
         composerState.state.sanitize(permissions);
     }
 
-    for (DisplayState display : displays) {
+    for (DisplayState& display : displays) {
         display.sanitize(permissions);
     }
 
@@ -6810,6 +6815,13 @@ void SurfaceFlinger::setPowerMode(const sp<IBinder>& displayToken, int mode) {
 }
 
 status_t SurfaceFlinger::doDump(int fd, const DumpArgs& args, bool asProto) {
+    /* QTI_BEGIN */
+    size_t numArgs = args.size();
+    if (numArgs && ((args[0] == String16("--file")) ||
+        (args[0] == String16("--allocated_buffers")))) {
+        return mQtiSFExtnIntf->qtiDoDumpContinuous(fd, args);
+    }
+    /* QTI_END */
     std::string result;
 
     IPCThreadState* ipc = IPCThreadState::self();
@@ -6873,7 +6885,16 @@ status_t SurfaceFlinger::doDump(int fd, const DumpArgs& args, bool asProto) {
                 dumpVisibleFrontEnd(compositionLayers);
             })
             .get();
-    dumpAll(args, compositionLayers, result);
+
+    /* QTI_BEGIN */
+    // selection of mini dumpsys (Format: adb shell dumpsys SurfaceFlinger --mini)
+    if (numArgs && ((args[0] == String16("--mini")))) {
+        mQtiSFExtnIntf->qtiDumpMini(result);
+    } else {
+        dumpAll(args, compositionLayers, result);
+    }
+    /* QTI_END */
+
     write(fd, result.c_str(), result.size());
     return NO_ERROR;
 }
