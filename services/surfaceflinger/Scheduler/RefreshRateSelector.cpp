@@ -696,7 +696,7 @@ auto RefreshRateSelector::getRankedFrameRatesLocked(const std::vector<LayerRequi
     if (!signals.touch && signals.idle &&
         !(policy->primaryRangeIsSingleRate() && hasExplicitVoteLayers)) {
         ALOGV("Idle");
-        const auto ranking = rankFrameRates(activeMode.getGroup(), RefreshRateOrder::Ascending, std::nullopt, 1_Hz);
+        const auto ranking = rankFrameRates(activeMode.getGroup(), RefreshRateOrder::Ascending, std::nullopt, 30_Hz);
         SFTRACE_FORMAT_INSTANT("%s (Idle)", to_string(ranking.front().frameRateMode.fps).c_str());
         ALOGE("%s (Idle)", to_string(ranking.front().frameRateMode.fps).c_str());
         return {ranking, GlobalSignals{.idle = true}};
