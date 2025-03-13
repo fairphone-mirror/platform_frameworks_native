@@ -96,6 +96,10 @@ void Scheduler::initVsync(frametimeline::TokenManager& tokenManager,
     Impl::initVsyncInternal(getVsyncSchedule()->getDispatch(), tokenManager, workDuration);
 }
 
+void Scheduler::setVideoPlayState(bool videoPlaying) {
+    isVideoPlaying = videoPlaying;
+}
+
 void Scheduler::startTimers() {
     using namespace sysprop;
     using namespace std::string_literals;
@@ -733,7 +737,9 @@ void Scheduler::resetIdleTimer() {
 }
 
 void Scheduler::onTouchHint() {
+    ALOGE("(onTouchHint)");
     if (mTouchTimer) {
+        resetIdleTimer();
         mTouchTimer->reset();
         pacesetterSelectorPtr()->resetKernelIdleTimer();
     }
@@ -1205,10 +1211,14 @@ GlobalSignals Scheduler::makeGlobalSignals() const {
     const bool powerOnImminent = mDisplayPowerTimer &&
             (mPolicy.displayPowerMode != hal::PowerMode::ON ||
              mPolicy.displayPowerTimer == TimerState::Reset);
+    const bool dozeMode = mPolicy.displayPowerMode == hal::PowerMode::DOZE;
+    const bool idle = mPolicy.idleTimer == TimerState::Expired;
 
     return {.touch = mTouchTimer && mPolicy.touch == TouchState::Active,
-            .idle = mPolicy.idleTimer == TimerState::Expired,
-            .powerOnImminent = powerOnImminent};
+            .idle = idle,
+            .powerOnImminent = powerOnImminent,
+            .dozeMode = dozeMode,
+            .isVideoPlaying = isVideoPlaying};
 }
 
 FrameRateMode Scheduler::getPreferredDisplayMode() {

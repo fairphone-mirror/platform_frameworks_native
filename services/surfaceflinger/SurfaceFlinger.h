@@ -186,6 +186,12 @@ enum {
     eTransactionMask = 0x3f,
 };
 
+enum VideoBufferType {
+    VIDEO_NOT,
+    VIDEO_SDR,
+    VIDEO_HDR,
+};
+
 // Latch Unsignaled buffer behaviours
 enum class LatchUnsignaledConfig {
     // All buffers are latched signaled.
@@ -797,6 +803,13 @@ private:
     bool latchBuffers();
 
     void updateLayerGeometry();
+
+    VideoBufferType mPlayVideoState = VideoBufferType::VIDEO_NOT;
+    VideoBufferType mCurrentPlayVideoState = VideoBufferType::VIDEO_NOT;
+    std::vector<int32_t> mTargetHWVideoFormat{2130706433, 842094169, 2141391878, 2141391876, 4096};
+    std::vector<int32_t> mTargetHWHDRVideoFormat{2141391882, 2130706437};
+    bool checkVideoLayerUpdate(const PixelFormat format, uint32_t w, uint32_t h);
+
     void updateLayerMetadataSnapshot();
     std::vector<std::pair<Layer*, LayerFE*>> moveSnapshotsToCompositionArgs(
             compositionengine::CompositionRefreshArgs& refreshArgs, bool cursorOnly)
