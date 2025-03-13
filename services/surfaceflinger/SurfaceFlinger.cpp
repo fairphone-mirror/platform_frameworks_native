@@ -3347,7 +3347,43 @@ CompositeResultsPerDisplay SurfaceFlinger::composite(
         }
     }
 
+    bool haveVideo = false;
+    for (auto& [layer, layerFE] : layers) {
+        auto layerbuffer = layer->getBuffer();
+        if(layerbuffer != nullptr) {
+            auto vbo = layer->getVisibleRegion(getDefaultDisplayDevice().get()).getBounds();
+            haveVideo = checkVideoLayerUpdate(layerbuffer->getPixelFormat(),
+                          vbo.right - vbo.left, vbo.bottom - vbo.top);
+             if (haveVideo) break;
+        }
+    }
+
+    if (mPlayVideoState != mCurrentPlayVideoState) {
+        mPlayVideoState = mCurrentPlayVideoState;
+        mScheduler->setVideoPlayState(mPlayVideoState != VideoBufferType::VIDEO_NOT);
+    }
+    mCurrentPlayVideoState = VideoBufferType::VIDEO_NOT;
+
     return resultsPerDisplay;
+}
+
+bool SurfaceFlinger::checkVideoLayerUpdate(const PixelFormat format, uint32_t w, uint32_t h) {
+    if (const auto display = getDefaultDisplayDevice()) {
+        int displayWidth = display->getWidth();
+        int displayHeight = display->getHeight();
+        uint32_t mMiniWH = (uint32_t) ((displayWidth > displayHeight ? displayHeight : displayWidth) * 0.8);
+
+        if (w < mMiniWH && h < mMiniWH) return false;
+        ALOGD("checkVideoLayerUpdate  %d %d %d",format,w,h);
+        if (std::any_of(mTargetHWVideoFormat.begin(), mTargetHWVideoFormat.end(), [format](int32_t v) { return format == v;})) {
+            mCurrentPlayVideoState = VideoBufferType::VIDEO_SDR;
+            ALOGD("checkVideoLayerUpdate is sdr %d %d %d",format,w,h);
+        } else if (std::any_of(mTargetHWHDRVideoFormat.begin(), mTargetHWHDRVideoFormat.end(), [format](int32_t v) { return format == v;})) {
+            mCurrentPlayVideoState = VideoBufferType::VIDEO_HDR;
+            ALOGD("checkVideoLayerUpdate is hdr %d %d %d",format,w,h);
+        }
+    }
+    return VideoBufferType::VIDEO_NOT != mCurrentPlayVideoState;
 }
 
 bool SurfaceFlinger::isHdrLayer(const frontend::LayerSnapshot& snapshot) const {

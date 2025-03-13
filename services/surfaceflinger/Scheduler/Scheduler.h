@@ -100,6 +100,9 @@ public:
               Fps activeRefreshRate, TimeStats&);
     virtual ~Scheduler();
 
+    bool isVideoPlaying = false;
+    void setVideoPlayState(bool videoPlaying);
+
     void startTimers();
 
     // TODO: b/241285191 - Remove this API by promoting pacesetter in onScreen{Acquired,Released}.

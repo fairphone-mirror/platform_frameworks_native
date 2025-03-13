@@ -50,7 +50,8 @@ public:
             std::chrono::nanoseconds(800us).count();
 
     // The lowest Render Frame Rate that will ever be selected
-    static constexpr Fps kMinSupportedFrameRate = 20_Hz;
+    static constexpr Fps kMinSupportedFrameRate = 1_Hz;
+    static constexpr Fps kLowestSupportedFrameRate = 20_Hz;
 
     // Start range for FrameRateCategory Normal and High.
     static constexpr Fps kFrameRateCategoryRateHigh = 90_Hz;
@@ -218,14 +219,21 @@ public:
 
         bool shouldEmitEvent() const { return !idle; }
 
+        bool dozeMode = false;
+
+        bool isVideoPlaying = false;
+
         bool operator==(GlobalSignals other) const {
             return touch == other.touch && idle == other.idle &&
-                    powerOnImminent == other.powerOnImminent;
+                    powerOnImminent == other.powerOnImminent
+                    && dozeMode == other.dozeMode && isVideoPlaying == other.isVideoPlaying;
         }
 
         auto toString() const {
             return ftl::Concat("{touch=", touch, ", idle=", idle,
-                               ", powerOnImminent=", powerOnImminent, '}');
+                               ", powerOnImminent=", powerOnImminent,
+                               ", dozeMode=", dozeMode,
+                               ", isVideoPlaying=", isVideoPlaying, '}');
         }
     };
 
@@ -484,6 +492,7 @@ private:
     FrameRateRanking rankFrameRates(
             std::optional<int> anchorGroupOpt, RefreshRateOrder refreshRateOrder,
             std::optional<DisplayModeId> preferredDisplayModeOpt = std::nullopt,
+            Fps preferredFps = 0_Hz,
             const RankFrameRatesPredicate& predicate = [](FrameRateMode) { return true; }) const
             REQUIRES(mLock);
 
