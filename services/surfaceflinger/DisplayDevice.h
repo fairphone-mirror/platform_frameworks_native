@@ -85,6 +85,18 @@ class QtiDisplayExtension;
 } // namespace compositionengineextension
 
 // QTI_END: 2023-03-06: Display: SF: Squash commit of SF Extensions.
+
+namespace gui {
+inline const char* to_string(ISurfaceComposer::OptimizationPolicy optimizationPolicy) {
+    switch (optimizationPolicy) {
+        case ISurfaceComposer::OptimizationPolicy::optimizeForPower:
+            return "optimizeForPower";
+        case ISurfaceComposer::OptimizationPolicy::optimizeForPerformance:
+            return "optimizeForPerformance";
+    }
+}
+} // namespace gui
+
 class DisplayDevice : public RefBase {
 public:
     constexpr static float sDefaultMinLumiance = 0.0;
