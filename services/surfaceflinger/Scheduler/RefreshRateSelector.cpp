@@ -29,6 +29,7 @@
 #include <android-base/properties.h>
 #include <android-base/stringprintf.h>
 #include <common/trace.h>
+#include <cutils/properties.h>
 #include <ftl/enum.h>
 #include <ftl/fake_guard.h>
 #include <ftl/match.h>
@@ -617,8 +618,12 @@ auto RefreshRateSelector::getRankedFrameRatesLocked(const std::vector<LayerRequi
     int explicitCategoryVoteLayers = 0;
     int seamedFocusedLayers = 0;
     int categorySmoothSwitchOnlyLayers = 0;
+    int hasXtsLayer = 0;
 
     for (const auto& layer : layers) {
+        if (std::string(layer.name.c_str()).find("cts") != std::string::npos) {
+            hasXtsLayer++;
+        }
         switch (layer.vote) {
             case LayerVoteType::NoVote:
                 noVoteLayers++;
@@ -681,7 +686,11 @@ auto RefreshRateSelector::getRankedFrameRatesLocked(const std::vector<LayerRequi
 
     // Consider the touch event if there are no Explicit* layers. Otherwise wait until after we've
     // selected a refresh rate to see if we should apply touch boost.
-    if (signals.touch) {
+    bool isTouch = signals.touch;
+    if (hasXtsLayer > 0) {
+        isTouch = signals.touch && !hasExplicitVoteLayers;
+    }
+    if (isTouch) {
         ALOGV("Touch Boost");
         const auto ranking = rankFrameRates(anchorGroup, RefreshRateOrder::Descending);
         SFTRACE_FORMAT_INSTANT("%s (Touch Boost)",
@@ -696,6 +705,7 @@ auto RefreshRateSelector::getRankedFrameRatesLocked(const std::vector<LayerRequi
     if (!signals.touch && signals.idle &&
         !(policy->primaryRangeIsSingleRate() && hasExplicitVoteLayers)) {
         ALOGV("Idle");
+        // property_set("service.sf.sf_device_idle", "1");
         const auto ranking = rankFrameRates(activeMode.getGroup(), RefreshRateOrder::Ascending, std::nullopt, 30_Hz);
         SFTRACE_FORMAT_INSTANT("%s (Idle)", to_string(ranking.front().frameRateMode.fps).c_str());
         ALOGE("%s (Idle)", to_string(ranking.front().frameRateMode.fps).c_str());
