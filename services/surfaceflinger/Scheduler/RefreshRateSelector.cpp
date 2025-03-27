@@ -569,12 +569,8 @@ auto RefreshRateSelector::getRankedFrameRatesLocked(const std::vector<LayerRequi
     int interactiveLayers = 0;
     int seamedFocusedLayers = 0;
     int categorySmoothSwitchOnlyLayers = 0;
-    int hasXtsLayer = 0;
 
     for (const auto& layer : layers) {
-        if (std::string(layer.name.c_str()).find("cts") != std::string::npos) {
-            hasXtsLayer++;
-        }
         switch (layer.vote) {
             case LayerVoteType::NoVote:
                 noVoteLayers++;
@@ -639,11 +635,7 @@ auto RefreshRateSelector::getRankedFrameRatesLocked(const std::vector<LayerRequi
 
     // Consider the touch event if there are no Explicit* layers. Otherwise wait until after we've
     // selected a refresh rate to see if we should apply touch boost.
-    bool isTouch = signals.touch;
-    if (hasXtsLayer > 0) {
-        isTouch = signals.touch && !hasExplicitVoteLayers;
-    }
-    if (isTouch) {
+    if (signals.touch && !hasExplicitVoteLayers) {
         ALOGV("Touch Boost");
         const auto ranking = rankFrameRates(anchorGroup, RefreshRateOrder::Descending);
         ATRACE_FORMAT_INSTANT("%s (Touch Boost)",
