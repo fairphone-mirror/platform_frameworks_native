@@ -50,7 +50,7 @@ public:
             std::chrono::nanoseconds(800us).count();
 
     // The lowest Render Frame Rate that will ever be selected
-    static constexpr Fps kMinSupportedFrameRate = 1_Hz;
+    static constexpr Fps kMinSupportedFrameRate = 10_Hz;
     static constexpr Fps kLowestSupportedFrameRate = 20_Hz;
 
     // Start range for FrameRateCategory Normal and High.
