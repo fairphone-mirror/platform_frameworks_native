@@ -293,6 +293,13 @@ prebuilt_etc {
 }
 
 prebuilt_etc {
+    name: "android.hardware.telephony.euicc.prebuilt.xml",
+    relative_install_path: "permissions",
+    src: "android.hardware.telephony.euicc.xml",
+    filename_from_src: true,
+}
+
+prebuilt_etc {
     name: "android.hardware.telephony.gsm.prebuilt.xml",
     src: "android.hardware.telephony.gsm.xml",
     defaults: ["frameworks_native_data_etc_defaults"],
