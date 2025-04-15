@@ -1030,15 +1030,17 @@ compositionengine::Output::ColorProfile Output::pickColorProfile(
     bool isHdrClientComposition = false;
     ui::Dataspace bestDataSpace = getBestDataspace(&hdrDataSpace, &isHdrClientComposition);
 
-    switch (refreshArgs.forceOutputColorMode) {
-        case ui::ColorMode::SRGB:
-            bestDataSpace = ui::Dataspace::V0_SRGB;
-            break;
-        case ui::ColorMode::DISPLAY_P3:
-            bestDataSpace = ui::Dataspace::DISPLAY_P3;
-            break;
-        default:
-            break;
+    if(bestDataSpace != ui::Dataspace::DISPLAY_P3) {
+        switch (refreshArgs.forceOutputColorMode) {
+            case ui::ColorMode::SRGB:
+                bestDataSpace = ui::Dataspace::V0_SRGB;
+                break;
+            case ui::ColorMode::DISPLAY_P3:
+                bestDataSpace = ui::Dataspace::DISPLAY_P3;
+                break;
+            default:
+                break;
+        }
     }
 
     // respect hdrDataSpace only when there is no legacy HDR support
