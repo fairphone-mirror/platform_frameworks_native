@@ -3200,13 +3200,13 @@ bool SurfaceFlinger::checkVideoLayerUpdate(const PixelFormat format, uint32_t w,
         uint32_t mMiniWH = (uint32_t) ((displayWidth > displayHeight ? displayHeight : displayWidth) * 0.8);
 
         if (w < mMiniWH && h < mMiniWH) return false;
-        ALOGD("checkVideoLayerUpdate  %d %d %d",format,w,h);
+        ALOGV("checkVideoLayerUpdate  %d %d %d",format,w,h);
         if (std::any_of(mTargetHWVideoFormat.begin(), mTargetHWVideoFormat.end(), [format](int32_t v) { return format == v;})) {
             mCurrentPlayVideoState = VideoBufferType::VIDEO_SDR;
-            ALOGD("checkVideoLayerUpdate is sdr %d %d %d",format,w,h);
+            ALOGV("checkVideoLayerUpdate is sdr %d %d %d",format,w,h);
         } else if (std::any_of(mTargetHWHDRVideoFormat.begin(), mTargetHWHDRVideoFormat.end(), [format](int32_t v) { return format == v;})) {
             mCurrentPlayVideoState = VideoBufferType::VIDEO_HDR;
-            ALOGD("checkVideoLayerUpdate is hdr %d %d %d",format,w,h);
+            ALOGV("checkVideoLayerUpdate is hdr %d %d %d",format,w,h);
         }
     }
     return VideoBufferType::VIDEO_NOT != mCurrentPlayVideoState;
