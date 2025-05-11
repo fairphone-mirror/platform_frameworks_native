@@ -1,4 +1,4 @@
-/* Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+/* Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 // #define LOG_NDEBUG 0
@@ -1160,6 +1160,10 @@ void QtiSurfaceFlingerExtension::qtiCheckVirtualDisplayHint(const Vector<Display
         return;
     }
 
+    if (displays.size() == 0) {
+      return;
+    }
+
     bool createVirtualDisplay = false;
     int width = 0, height = 0, format = 0;
     {
@@ -1199,7 +1203,7 @@ void QtiSurfaceFlingerExtension::qtiCheckVirtualDisplayHint(const Vector<Display
                             ALOGW_IF(status != NO_ERROR, "Unable to query usage (%d)", status);
                             if ((status == NO_ERROR) && qtiCanAllocateHwcDisplayIdForVDS(usage)) {
                                 createVirtualDisplay = true;
-                                return;
+                                break;
                             }
                         }
                     }
@@ -2104,6 +2108,10 @@ void QtiSurfaceFlingerExtension::qtiAllowIdleFallback() {
             mQtiDisplayConfigHidl->AllowIdleFallback();
         }
     }
+}
+
+bool QtiSurfaceFlingerExtension::qtiSupportsBackgroundBlur() {
+     return mQtiFeatureManager->qtiIsExtensionFeatureEnabled(QtiFeature::kSupportsBackgroundBlur);
 }
 
 void QtiSurfaceFlingerExtension::qtiSetFrameBufferSizeForScaling(
