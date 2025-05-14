@@ -109,7 +109,7 @@ void Scheduler::startTimers() {
                     sysprop::enable_frame_rate_override(true)
             ? 200
             : 0;
-    if (const int32_t millis = set_touch_timer_ms(defaultTouchTimerValue); millis > 0) {
+    if (const int32_t millis = set_touch_timer_ms(defaultTouchTimerValue)/1000; millis > 0) {
         // Touch events are coming to SF every 100ms, so the timer needs to be higher than that
         mTouchTimer.emplace(
                 "TouchTimer", std::chrono::milliseconds(millis),
