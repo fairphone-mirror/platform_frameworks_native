@@ -540,7 +540,7 @@ auto RefreshRateSelector::getRankedFrameRatesLocked(const std::vector<LayerRequi
 
     if (signals.dozeMode) {
         ALOGV("dozeMode");
-        const auto ranking = rankFrameRates(activeMode.getGroup(), RefreshRateOrder::Descending, std::nullopt, 10_Hz);
+        const auto ranking = rankFrameRates(activeMode.getGroup(), RefreshRateOrder::Descending);
         ATRACE_FORMAT_INSTANT("%s (dozeMode)",
                               to_string(ranking.front().frameRateMode.fps).c_str());
         ALOGE("%s (dozeMode)", to_string(ranking.front().frameRateMode.fps).c_str());
