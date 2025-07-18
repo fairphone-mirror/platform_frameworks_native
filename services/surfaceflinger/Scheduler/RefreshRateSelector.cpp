@@ -554,7 +554,7 @@ auto RefreshRateSelector::getRankedFrameRatesLocked(const std::vector<LayerRequi
     if (signals.dozeMode) {
         ALOGV("dozeMode");
         const auto ranking = rankFrameRates(activeMode.getGroup(), RefreshRateOrder::Descending, std::nullopt, 10_Hz);
-        ATRACE_FORMAT_INSTANT("%s (dozeMode)",
+        SFTRACE_FORMAT_INSTANT("%s (dozeMode)",
                               to_string(ranking.front().frameRateMode.fps).c_str());
         ALOGE("%s (dozeMode)", to_string(ranking.front().frameRateMode.fps).c_str());
         return {ranking, GlobalSignals{.dozeMode = true}};
@@ -563,7 +563,7 @@ auto RefreshRateSelector::getRankedFrameRatesLocked(const std::vector<LayerRequi
     if (signals.isVideoPlaying) {
         ALOGV("isVideoPlaying");
         const auto ranking = rankFrameRates(activeMode.getGroup(), RefreshRateOrder::Descending, std::nullopt, 60_Hz);
-        ATRACE_FORMAT_INSTANT("%s (isVideoPlaying)",
+        SFTRACE_FORMAT_INSTANT("%s (isVideoPlaying)",
                               to_string(ranking.front().frameRateMode.fps).c_str());
         ALOGE("%s (isVideoPlaying)", to_string(ranking.front().frameRateMode.fps).c_str());
         return {ranking, GlobalSignals{.isVideoPlaying = true}};
