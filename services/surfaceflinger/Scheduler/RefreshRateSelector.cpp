@@ -561,14 +561,14 @@ auto RefreshRateSelector::getRankedFrameRatesLocked(const std::vector<LayerRequi
         return {ranking, GlobalSignals{.dozeMode = true}};
     }
 
-    /*if (signals.isVideoPlaying) {
+    if (signals.isVideoPlaying) {
         ALOGV("isVideoPlaying");
-        const auto ranking = rankFrameRates(activeMode.getGroup(), RefreshRateOrder::Descending, std::nullopt, 60_Hz);
+        const auto ranking = rankFrameRates(activeMode.getGroup(), RefreshRateOrder::Descending);
         SFTRACE_FORMAT_INSTANT("%s (isVideoPlaying)",
                               to_string(ranking.front().frameRateMode.fps).c_str());
         ALOGE("%s (isVideoPlaying)", to_string(ranking.front().frameRateMode.fps).c_str());
         return {ranking, GlobalSignals{.isVideoPlaying = true}};
-    }*/
+    }
 
     // A method for UI Toolkit to send the touch signal via "HighHint" category vote,
     // which will touch boost when there are no ExplicitDefault layer votes on the app.
