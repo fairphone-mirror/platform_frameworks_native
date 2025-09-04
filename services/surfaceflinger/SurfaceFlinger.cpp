@@ -6699,14 +6699,16 @@ void SurfaceFlinger::setPowerModeInternal(const sp<DisplayDevice>& display, hal:
 
         getHwComposer().setPowerMode(displayId, mode);
         /* QTI_BEGIN */
-        if (!qtiIsDummyDisplay) {
+  /*      if (!qtiIsDummyDisplay) {
             if ((qtiIsPluggablePrioritized && (displayId != getPrimaryDisplayIdLocked())) ||
                 displayId == getPrimaryDisplayIdLocked()) {
                 mQtiSFExtnIntf->qtiUpdateVsyncSource();
-            }
+            }*/
         /* QTI_END */
-        } else if (mode != hal::PowerMode::DOZE_SUSPEND &&
+/*        } else if (mode != hal::PowerMode::DOZE_SUSPEND && */
+	if (mode != hal::PowerMode::DOZE_SUSPEND &&
             (displayId == mActiveDisplayId || FlagManager::getInstance().multithreaded_present())) {
+            ALOGE("VJ ==== activeId : %d - .multithreaded_present : %d", (displayId == mActiveDisplayId), FlagManager::getInstance().multithreaded_present());
             const bool enable =
                     mScheduler->getVsyncSchedule(displayId)->getPendingHardwareVsyncState();
             requestHardwareVsync(displayId, enable);
