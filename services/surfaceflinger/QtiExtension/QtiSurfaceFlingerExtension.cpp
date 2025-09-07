@@ -12,11 +12,7 @@
 #include <aidl/vendor/qti/hardware/display/config/IDisplayConfig.h>
 #include <aidl/vendor/qti/hardware/display/config/IDisplayConfigCallback.h>
 #include <vendor/qti/hardware/display/composer/3.1/IQtiComposerClient.h>
-#if defined(PXLW_IRIS)
-#include <vendor/pixelworks/hardware/display/1.0/IIris.h>
-using ::android::hardware::hidl_vec;
-using ::vendor::pixelworks::hardware::display::V1_0::IIris;
-#endif
+
 #include <android-base/properties.h>
 #include <android/binder_manager.h>
 #include <android/binder_process.h>
@@ -1552,9 +1548,6 @@ void QtiSurfaceFlingerExtension::qtiUpdateSmomoState() {
 void QtiSurfaceFlingerExtension::qtiSetDisplayAnimating() {
     bool hasScreenshot = false;
     uint32_t hwcDisplayId;
-#if defined(PXLW_IRIS)
-    bool screenShotChange = false;
-#endif
 
     for (const auto& [token, displayDevice] :
          FTL_FAKE_GUARD(mQtiFlinger->mStateLock, mQtiFlinger->mDisplays)) {
@@ -1601,27 +1594,8 @@ void QtiSurfaceFlingerExtension::qtiSetDisplayAnimating() {
             }
 
             mQtiHasScreenshot = hasScreenshot;
-
-#if defined(PXLW_IRIS)
-            screenShotChange = true;
-#endif
         }
     }
-
-#if defined(PXLW_IRIS)
-    if (screenShotChange) {
-        static ::android::sp<IIris> iris = IIris::tryGetService();
-        if (iris != nullptr) {
-            hidl_vec<int32_t> v(std::vector<int32_t>{hasScreenshot});
-            auto rc = iris->irisConfigureSet(50 /*HDR_SETTING*/, v);
-            if (!rc.isOk()) {
-                ALOGE("IRIS_LOG_VD Failed to call IIris service");
-            } else {
-                ALOGI("IRIS_LOG_VD hasScreenshot %d", hasScreenshot);
-            }
-        }
-    }
-#endif
 }
 
 void QtiSurfaceFlingerExtension::qtiUpdateSmomoLayerInfo(
