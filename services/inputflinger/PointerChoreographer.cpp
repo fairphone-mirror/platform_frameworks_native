@@ -666,7 +666,8 @@ PointerChoreographer::calculatePointerDisplayChangeToNotify() {
         displayIdToNotify = pointerController->getDisplayId();
         cursorPosition = pointerController->getPosition();
     }
-    if (mNotifiedPointerDisplayId == displayIdToNotify) {
+    if (mNotifiedPointerDisplayId == displayIdToNotify
+            && mNotifiedPointerDisplayId == ui::LogicalDisplayId::DEFAULT) {
         return {};
     }
     mNotifiedPointerDisplayId = displayIdToNotify;
