@@ -1268,8 +1268,7 @@ auto RefreshRateSelector::rankFrameRates(std::optional<int> anchorGroupOpt,
             //  use a lower frame rate when we want Ascending frame rates.
             return;
         }
-
-        if (frameRateMode.fps < 60_Hz && preferredFps == 0_Hz) {
+        if (frameRateMode.fps < 30_Hz && preferredFps == 0_Hz) {
             return;
         }
 
