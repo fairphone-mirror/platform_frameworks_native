@@ -96,6 +96,10 @@ void QtiFeatureManager::qtiInit() {
     propName = qtiGetPropName(kSupportsBackgroundBlur);
     mQtiSupportsBackgroundBlur = base::GetBoolProperty(propName, true);
     ALOGI_IF(mQtiSupportsBackgroundBlur, "Supports Background Blur");
+
+    propName = qtiGetPropName(kReduceSlotsForWideVideo);
+    mQtiReduceSlotsForWideVideo = base::GetBoolProperty(propName, true);
+    ALOGI_IF(mQtiReduceSlotsForWideVideo, "Reduce Slots For Wide Video");
 }
 
 void QtiFeatureManager::qtiSetIDisplayConfig(std::shared_ptr<IDisplayConfig> aidl) {
@@ -158,6 +162,8 @@ bool QtiFeatureManager::qtiIsExtensionFeatureEnabled(QtiFeature feature) {
             return mQtiAllowIdleFallback;
         case QtiFeature::kSupportsBackgroundBlur:
             return mQtiSupportsBackgroundBlur;
+        case QtiFeature::kReduceSlotsForWideVideo:
+            return mQtiReduceSlotsForWideVideo;
         default:
             ALOGW("Queried unknown SF extension feature %d", feature);
             return false;
@@ -202,6 +208,8 @@ string QtiFeatureManager::qtiGetPropName(QtiFeature feature) {
             return "vendor.display.enable_allow_idle_fallback";
         case QtiFeature::kSupportsBackgroundBlur:
             return "vendor.display.supports_background_blur";
+        case QtiFeature::kReduceSlotsForWideVideo:
+            return "vendor.display.reduce_slots_for_wide_video";
         default:
             ALOGW("Queried unknown SF extension feature %d", feature);
             return "";

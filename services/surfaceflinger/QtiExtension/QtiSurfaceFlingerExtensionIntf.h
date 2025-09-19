@@ -42,6 +42,7 @@ enum QtiFeature {
     kSmomoOptimalRefreshRate,
     kIdleFallback,
     kSupportsBackgroundBlur,
+    kReduceSlotsForWideVideo,
 };
 
 class QtiSurfaceFlingerExtensionIntf {
