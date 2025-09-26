@@ -545,18 +545,10 @@ sk_sp<SkShader> SkiaRenderEngine::createRuntimeEffectShader(
     }
 
     if (graphicBuffer && parameters.layer.luts) {
-        const bool dimInLinearSpace = parameters.display.dimmingStage !=
-                aidl::android::hardware::graphics::composer3::DimmingStage::GAMMA_OETF;
-        const ui::Dataspace runtimeEffectDataspace = !dimInLinearSpace
-                ? static_cast<ui::Dataspace>(
-                          (parameters.outputDataSpace & ui::Dataspace::STANDARD_MASK) |
-                          ui::Dataspace::TRANSFER_GAMMA2_2 |
-                          (parameters.outputDataSpace & ui::Dataspace::RANGE_MASK))
-                : parameters.outputDataSpace;
-
         shader = mLutShader.lutShader(shader, parameters.layer.luts,
                                       parameters.layer.sourceDataspace,
-                                      toSkColorSpace(runtimeEffectDataspace));
+                                      toSkColorSpace(parameters.outputDataSpace),
+                                      parameters.layer.lutSourceIsHwc);
     }
 
     if (parameters.requiresLinearEffect) {
@@ -1025,7 +1017,8 @@ void SkiaRenderEngine::drawLayersInternal(
                 (display.outputDataspace & ui::Dataspace::TRANSFER_MASK) ==
                         static_cast<int32_t>(ui::Dataspace::TRANSFER_SRGB);
 
-        const bool useFakeOutputDataspaceForRuntimeEffect = !dimInLinearSpace && isExtendedHdr;
+        const bool useFakeOutputDataspaceForRuntimeEffect =
+                !dimInLinearSpace && (isExtendedHdr || layer.luts);
 
         const ui::Dataspace fakeDataspace = useFakeOutputDataspaceForRuntimeEffect
                 ? static_cast<ui::Dataspace>(
@@ -1045,7 +1038,7 @@ void SkiaRenderEngine::drawLayersInternal(
         const bool requiresLinearEffect = layer.colorTransform != mat4() ||
                 (needsToneMapping(layer.sourceDataspace, display.outputDataspace)) ||
                 (dimInLinearSpace && !equalsWithinMargin(1.f, layerDimmingRatio)) ||
-                (!dimInLinearSpace && isExtendedHdr);
+                useFakeOutputDataspaceForRuntimeEffect;
 
         // quick abort from drawing the remaining portion of the layer
         if (layer.skipContentDraw ||
@@ -1110,13 +1103,26 @@ void SkiaRenderEngine::drawLayersInternal(
 
             sk_sp<SkShader> shader;
 
+            bool useRawShader = layer.source.buffer.buffer && layer.luts && layer.lutSourceIsHwc;
+
             if (layer.source.buffer.useTextureFiltering) {
-                shader = image->makeShader(SkTileMode::kClamp, SkTileMode::kClamp,
-                                           SkSamplingOptions(
-                                                   {SkFilterMode::kLinear, SkMipmapMode::kNone}),
-                                           &matrix);
+                if (useRawShader) {
+                    shader = image->makeRawShader(SkTileMode::kClamp, SkTileMode::kClamp,
+                                                  SkSamplingOptions({SkFilterMode::kLinear,
+                                                                     SkMipmapMode::kNone}),
+                                                  &matrix);
+                } else {
+                    shader = image->makeShader(SkTileMode::kClamp, SkTileMode::kClamp,
+                                               SkSamplingOptions({SkFilterMode::kLinear,
+                                                                  SkMipmapMode::kNone}),
+                                               &matrix);
+                }
             } else {
-                shader = image->makeShader(SkSamplingOptions(), matrix);
+                if (useRawShader) {
+                    shader = image->makeRawShader(SkSamplingOptions(), matrix);
+                } else {
+                    shader = image->makeShader(SkSamplingOptions(), matrix);
+                }
             }
 
             if (useIsOpaqueWorkaround) {

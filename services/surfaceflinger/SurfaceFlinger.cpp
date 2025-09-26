@@ -4109,6 +4109,21 @@ sp<DisplayDevice> SurfaceFlinger::setupNewDisplayDeviceInternal(
 
     creationArgs.requestedRefreshRate = state.requestedRefreshRate;
 
+    /* QTI_BEGIN */
+    if (state.isVirtual()) {
+        const auto qtiHalId = compositionDisplay->getDisplayIdVariant().and_then(
+                asHalDisplayId<DisplayIdVariant>);
+        DisplayId qtiDisplayId = *qtiHalId;
+        uint64_t value = qtiDisplayId.value;
+        const auto qtiPhysId = PhysicalDisplayId::fromValue(value);
+        ui::ColorModes qtiColorModes = getHwComposer().getColorModes(qtiPhysId);
+        for (const auto mode : qtiColorModes) {
+            creationArgs.hasWideColorGamut |= ui::isWideColorMode(mode);
+            creationArgs.hwcColorModes.emplace(mode, getHwComposer().getRenderIntents(qtiPhysId, mode));
+        }
+    }
+    /* QTI_END */
+
     sp<DisplayDevice> display = getFactory().createDisplayDevice(creationArgs);
 
     nativeWindowSurface->preallocateBuffers();
@@ -5823,6 +5838,7 @@ status_t SurfaceFlinger::mirrorDisplay(DisplayId displayId, const LayerCreationA
     ui::LayerStack layerStack;
     sp<Layer> rootMirrorLayer;
     status_t result = 0;
+    LayerCreationArgs mirrorArgs = LayerCreationArgs::fromOtherArgs(args);
 
     {
         Mutex::Autolock lock(mStateLock);
@@ -5833,7 +5849,6 @@ status_t SurfaceFlinger::mirrorDisplay(DisplayId displayId, const LayerCreationA
         }
 
         layerStack = display->getLayerStack();
-        LayerCreationArgs mirrorArgs = LayerCreationArgs::fromOtherArgs(args);
         mirrorArgs.flags |= ISurfaceComposerClient::eNoColorFill;
         mirrorArgs.addToRoot = true;
         mirrorArgs.layerStackToMirror = layerStack;
@@ -5841,11 +5856,11 @@ status_t SurfaceFlinger::mirrorDisplay(DisplayId displayId, const LayerCreationA
         if (result != NO_ERROR) {
             return result;
         }
-        outResult.layerId = rootMirrorLayer->sequence;
-        outResult.layerName = String16(rootMirrorLayer->getDebugName());
-        addClientLayer(mirrorArgs, outResult.handle, rootMirrorLayer /* layer */,
-                       nullptr /* parent */, nullptr /* outTransformHint */);
     }
+    outResult.layerId = rootMirrorLayer->sequence;
+    outResult.layerName = String16(rootMirrorLayer->getDebugName());
+    addClientLayer(mirrorArgs, outResult.handle, rootMirrorLayer /* layer */, nullptr /* parent */,
+                   nullptr /* outTransformHint */);
 
     setTransactionFlags(eTransactionFlushNeeded);
     return NO_ERROR;
@@ -7873,7 +7888,6 @@ void SurfaceFlinger::captureDisplay(const DisplayCaptureArgs& args,
     }
 
     wp<const DisplayDevice> displayWeak;
-    ftl::Optional<DisplayIdVariant> displayIdVariantOpt;
     ui::LayerStack layerStack;
     ui::Size reqSize(args.width, args.height);
     std::unordered_set<uint32_t> excludeLayerIds;
@@ -7889,7 +7903,6 @@ void SurfaceFlinger::captureDisplay(const DisplayCaptureArgs& args,
             return;
         }
         displayWeak = display;
-        displayIdVariantOpt = display->getDisplayIdVariant();
         layerStack = display->getLayerStack();
         displayIsSecure = display->isSecure();
 
@@ -7917,7 +7930,6 @@ void SurfaceFlinger::captureDisplay(const DisplayCaptureArgs& args,
 
     ScreenshotArgs screenshotArgs;
     screenshotArgs.captureTypeVariant = displayWeak;
-    screenshotArgs.displayIdVariant = displayIdVariantOpt;
     screenshotArgs.sourceCrop = gui::aidl_utils::fromARect(captureArgs.sourceCrop);
     if (screenshotArgs.sourceCrop.isEmpty()) {
         screenshotArgs.sourceCrop = layerStackSpaceRect;
@@ -7936,7 +7948,6 @@ void SurfaceFlinger::captureDisplay(DisplayId displayId, const CaptureArgs& args
                                     const sp<IScreenCaptureListener>& captureListener) {
     ui::LayerStack layerStack;
     wp<const DisplayDevice> displayWeak;
-    ftl::Optional<DisplayIdVariant> displayIdVariantOpt;
     ui::Size size;
     Rect layerStackSpaceRect;
     bool displayIsSecure;
@@ -7952,7 +7963,6 @@ void SurfaceFlinger::captureDisplay(DisplayId displayId, const CaptureArgs& args
         }
 
         displayWeak = display;
-        displayIdVariantOpt = display->getDisplayIdVariant();
         layerStack = display->getLayerStack();
         layerStackSpaceRect = display->getLayerStackSpaceRect();
         size = display->getLayerStackSpaceRect().getSize();
@@ -7987,7 +7997,6 @@ void SurfaceFlinger::captureDisplay(DisplayId displayId, const CaptureArgs& args
 
     ScreenshotArgs screenshotArgs;
     screenshotArgs.captureTypeVariant = displayWeak;
-    screenshotArgs.displayIdVariant = displayIdVariantOpt;
     screenshotArgs.sourceCrop = layerStackSpaceRect;
     screenshotArgs.reqSize = size;
     screenshotArgs.dataspace = static_cast<ui::Dataspace>(args.dataspace);
@@ -8318,6 +8327,7 @@ bool SurfaceFlinger::getDisplayStateOnMainThread(ScreenshotArgs& args) {
             args.sdrWhitePointNits = state.sdrWhitePointNits;
             args.renderIntent = state.renderIntent;
             args.colorMode = state.colorMode;
+            args.displayIdVariant = display->getDisplayIdVariant();
             return true;
         }
     }
