@@ -13,6 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #include <android/gui/BnRegionSamplingListener.h>
 #include <android/gui/BnSurfaceComposer.h>
 #include <android/gui/BnSurfaceComposerClient.h>
@@ -158,6 +165,9 @@ public:
     MOCK_METHOD(binder::Status, removeWindowInfosListener, (const sp<gui::IWindowInfosListener>&),
                 (override));
     MOCK_METHOD(binder::Status, getOverlaySupport, (gui::OverlayProperties*), (override));
+    MOCK_METHOD(binder::Status, setDisplayConfig,
+                (const sp<IBinder>&, const gui::DisplayDeviceConfig& displayDeviceConfig),
+                (override));
 };
 
 class FakeBnSurfaceComposerClient : public gui::BnSurfaceComposerClient {

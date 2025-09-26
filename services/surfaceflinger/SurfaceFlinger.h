@@ -13,9 +13,9 @@
  * limitations under the License.
  */
 
-/* Changes from Qualcomm Innovation Center are provided under the following license:
- *
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -1592,6 +1592,10 @@ public:
                                           gui::WindowInfosListenerInfo* outInfo) override;
     binder::Status removeWindowInfosListener(
             const sp<gui::IWindowInfosListener>& windowInfosListener) override;
+    binder::Status setDisplayConfig(const sp<IBinder>& displayToken,
+                                    const gui::DisplayDeviceConfig& displayDeviceConfig) override {
+        return binder::Status::ok();
+    }
 
 private:
     static const constexpr bool kUsePermissionCache = true;

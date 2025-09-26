@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 package android.gui;
 
 import android.gui.CreateSurfaceResult;
@@ -41,6 +47,12 @@ interface ISurfaceComposerClient {
     const int eFXSurfaceBufferState = 0x00040000;
     const int eFXSurfaceContainer = 0x00080000;
     const int eFXSurfaceMask = 0x000F0000;
+    // XR surface effects - Quad Layer
+    const int eFxSurfaceXRQuad = 0x00100000;
+    // XR surface effects - Projection Layer
+    const int eFxSurfaceXRProjection = 0x00200000;
+    // XR surface effects - Primary Layer
+    const int eFxSurfaceXRPrimary = 0x00400000;
 
     /**
      * Requires ACCESS_SURFACE_FLINGER permission

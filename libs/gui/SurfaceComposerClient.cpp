@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #define LOG_TAG "SurfaceComposerClient"
 
 #include <semaphore.h>
@@ -1744,6 +1750,42 @@ SurfaceComposerClient::Transaction& SurfaceComposerClient::Transaction::unsetBuf
     return *this;
 }
 
+SurfaceComposerClient::Transaction& SurfaceComposerClient::Transaction::setReferenceSpaceType(
+        const sp<SurfaceControl>& sc,
+        const gui::RenderLayerReferenceSpaceType& referenceSpaceType) {
+    return *this;
+}
+
+SurfaceComposerClient::Transaction& SurfaceComposerClient::Transaction::setCompositionLayerType(
+        const sp<SurfaceControl>& sc, const gui::CompositionLayerType& compositionLayerType) {
+    return *this;
+}
+
+SurfaceComposerClient::Transaction& SurfaceComposerClient::Transaction::setPose(
+        const sp<SurfaceControl>& sc, const gui::Pose& pose) {
+    return *this;
+}
+
+SurfaceComposerClient::Transaction& SurfaceComposerClient::Transaction::setQuadSize(
+        const sp<SurfaceControl>& sc, float width, float height) {
+    return *this;
+}
+
+SurfaceComposerClient::Transaction& SurfaceComposerClient::Transaction::setFrustum(
+        const sp<SurfaceControl>& sc, const gui::Frustum& frustum) {
+    return *this;
+}
+
+SurfaceComposerClient::Transaction& SurfaceComposerClient::Transaction::setPlaneEquation(
+        const sp<SurfaceControl>& sc, const gui::PlaneEquation& planeEquation) {
+    return *this;
+}
+
+SurfaceComposerClient::Transaction& SurfaceComposerClient::Transaction::setLayerVisibilityType(
+        const sp<SurfaceControl>& sc, const gui::LayerVisibilityType& layerVisibilityType) {
+    return *this;
+}
+
 void SurfaceComposerClient::Transaction::setReleaseBufferCallback(BufferData* bufferData,
                                                                   ReleaseBufferCallback callback) {
     if (!callback) {
@@ -3038,6 +3080,11 @@ std::optional<DisplayDecorationSupport> SurfaceComposerClient::getDisplayDecorat
         });
     }
     return support;
+}
+
+status_t SurfaceComposerClient::setDisplayConfig(const sp<IBinder>& display,
+                                                 gui::DisplayDeviceConfig& displayDeviceConfig) {
+    return NO_ERROR;
 }
 
 int SurfaceComposerClient::getGpuContextPriority() {

@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #pragma once
 
 #include <stdint.h>
@@ -51,6 +57,15 @@
 #include <math/vec3.h>
 
 #include <aidl/android/hardware/graphics/common/DisplayDecorationSupport.h>
+#include <android/gui/CompositionLayerType.h>
+#include <android/gui/DisplayDeviceConfig.h>
+#include <android/gui/Frustum.h>
+#include <android/gui/LayerVisibilityType.h>
+#include <android/gui/Orientation.h>
+#include <android/gui/PlaneEquation.h>
+#include <android/gui/Pose.h>
+#include <android/gui/Position.h>
+#include <android/gui/RenderLayerReferenceSpaceType.h>
 
 namespace android {
 
@@ -320,6 +335,10 @@ public:
     static std::optional<aidl::android::hardware::graphics::common::DisplayDecorationSupport>
     getDisplayDecorationSupport(const sp<IBinder>& displayToken);
 
+    // Sets display config on the connected display.
+    static status_t setDisplayConfig(const sp<IBinder>& display,
+                                     gui::DisplayDeviceConfig& displayDeviceConfig);
+
     // ------------------------------------------------------------------------
     // surface creation / destruction
 
@@ -550,6 +569,37 @@ public:
                                uint32_t producerId = 0, ReleaseBufferCallback callback = nullptr);
         Transaction& unsetBuffer(const sp<SurfaceControl>& sc);
         std::shared_ptr<BufferData> getAndClearBuffer(const sp<SurfaceControl>& sc);
+
+        // Sets the reference space type of a layer with the specified type
+        Transaction& setReferenceSpaceType(
+                const sp<SurfaceControl>& sc,
+                const gui::RenderLayerReferenceSpaceType& referenceSpaceType);
+
+        // Sets the composition layer type of a layer with the specified type
+        Transaction& setCompositionLayerType(const sp<SurfaceControl>& sc,
+                                             const gui::CompositionLayerType& compositionLayerType);
+
+        /* Sets pose of a layer with the specified pose
+           In case of Quad layer, the pose defines position and orientation of the quad in the
+           reference frame of the specified space.
+           In case of Projection layer, the pose defines the location and orientation of this
+           projection element in the specified space.
+        */
+        Transaction& setPose(const sp<SurfaceControl>& sc, const gui::Pose& pose);
+
+        // Sets the size of a quad layer with the specified size in meters
+        Transaction& setQuadSize(const sp<SurfaceControl>& sc, float width, float height);
+
+        // Sets the frustum of a projection layer with the specified frustum
+        Transaction& setFrustum(const sp<SurfaceControl>& sc, const gui::Frustum& frustum);
+
+        // Sets the plane equation of a projectin layer with the specified plane equation
+        Transaction& setPlaneEquation(const sp<SurfaceControl>& sc,
+                                      const gui::PlaneEquation& planeEquation);
+
+        // Sets the visibility type of a layer with specified type
+        Transaction& setLayerVisibilityType(const sp<SurfaceControl>& sc,
+                                            const gui::LayerVisibilityType& layerVisibilityType);
 
         /**
          * If this transaction, has a a buffer set for the given SurfaceControl

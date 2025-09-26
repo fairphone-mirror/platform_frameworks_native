@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 #ifndef ANDROID_GUI_SURFACE_H
 #define ANDROID_GUI_SURFACE_H
 
@@ -114,6 +120,10 @@ public:
      * IGraphicBufferProducer while the Surface is connected.
      */
     sp<IGraphicBufferProducer> getIGraphicBufferProducer() const;
+
+    /* QTI_BEGIN */
+    void setPrimaryIGraphicBufferProducer(sp<IGraphicBufferProducer>& bufferProducer) {}
+    /* QTI_END */
 
     sp<IBinder> getSurfaceControlHandle() const;
 

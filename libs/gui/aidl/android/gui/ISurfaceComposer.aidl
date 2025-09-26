@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 
+/*
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
+
 package android.gui;
 
 import android.gui.Color;
@@ -48,6 +54,7 @@ import android.gui.PullAtomData;
 import android.gui.ARect;
 import android.gui.StaticDisplayInfo;
 import android.gui.WindowInfosListenerInfo;
+import android.gui.DisplayDeviceConfig;
 
 /** @hide */
 interface ISurfaceComposer {
@@ -507,4 +514,10 @@ interface ISurfaceComposer {
     void removeWindowInfosListener(IWindowInfosListener windowInfosListener);
 
     OverlayProperties getOverlaySupport();
+
+    /**
+     * Sets display config on a given display.
+     * @see DisplayDeviceConfig.aidl for details.
+     */
+    void setDisplayConfig(IBinder displayToken, in DisplayDeviceConfig displayDeviceConfig);
 }
