@@ -549,7 +549,7 @@ auto RefreshRateSelector::getRankedFrameRatesLocked(const std::vector<LayerRequi
 
     if (signals.isVideoPlaying) {
         ALOGV("isVideoPlaying");
-        const auto ranking = rankFrameRates(activeMode.getGroup(), RefreshRateOrder::Descending);
+        const auto ranking = rankFrameRates(activeMode.getGroup(), RefreshRateOrder::Descending, std::nullopt, 60_Hz);
         ATRACE_FORMAT_INSTANT("%s (isVideoPlaying)",
                               to_string(ranking.front().frameRateMode.fps).c_str());
         ALOGE("%s (isVideoPlaying)", to_string(ranking.front().frameRateMode.fps).c_str());
