@@ -148,6 +148,12 @@ void Display::disconnect() {
 }
 
 void Display::setColorTransform(const compositionengine::CompositionRefreshArgs& args) {
+    // FPSW-750 begin
+    // To prevent eye‑comfort mode and similar color adjustments from being captured during screen recording.
+    if(isVirtual()){
+        return;
+    }
+    // FPSW-750 end
     Output::setColorTransform(args);
     const auto halDisplayId = getDisplayIdVariant().and_then(asHalDisplayId<DisplayIdVariant>);
     if (mIsDisconnected || !halDisplayId || CC_LIKELY(!args.colorTransformMatrix)) {
