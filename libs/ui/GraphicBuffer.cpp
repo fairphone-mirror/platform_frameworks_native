@@ -116,6 +116,21 @@ GraphicBuffer::GraphicBuffer(uint32_t inWidth, uint32_t inHeight,
 GraphicBuffer::GraphicBuffer(uint32_t inWidth, uint32_t inHeight, PixelFormat inFormat,
                              uint32_t inLayerCount, uint64_t inUsage, std::string requestorName)
       : GraphicBuffer() {
+
+    // On No-GPU SKUs (SwiftShader only), IMPLEMENTATION_DEFINED cannot be
+    // resolved automatically. Map camera-write IMPLEMENTATION_DEFINED to
+    // a concrete YUV 420 format when no GPU device is present to avoid
+    // breaking existing clients.
+    if (HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED == inFormat &&
+        (inUsage & GRALLOC_USAGE_HW_CAMERA_WRITE)) {
+        int kgsl_fd = open("/dev/kgsl-3d0", 0);
+        if (kgsl_fd < 0) {
+            inFormat = AHARDWAREBUFFER_FORMAT_Y8Cb8Cr8_420;
+        } else {
+            close(kgsl_fd);
+        }
+    }
+
     mInitCheck = initWithSize(inWidth, inHeight, inFormat, inLayerCount, inUsage,
                               std::move(requestorName));
 }
